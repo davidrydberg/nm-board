@@ -1,0 +1,5 @@
+working [at=1792411743]: setup done on fm/pack-option-api off dev 11495b6a; reading the design notes
+done [at=1792413321]: API side of the packing option committed 65196de5 on fm/pack-option-api (option in GET order, pack_separately on the shipping PATCH with 422 on bad input, 5.00 fee in total plus a fee line); notes data/pack-option-api/pr-notes.md
+paused [at=1792413439]: no-mistakes run on fm/pack-option-api (base dev) in background; resumes at the next gate or outcome
+needs-decision [at=1792413582] [key=nm-01JXB56R3S8P2RMK6RQF9R4EN9-review]: ask-user findings=admin-toggle-overridden,invoice-fee-row-unverified file=/home/dev/firstmate/data/pack-option-api/nm-01JXB56R3S8P2RMK6RQF9R4EN9-findings.txt
+paused [at=1792418228]: waiting for firstmate's decision on the admin toggle (review gate nm-01JXB56R3S8P2RMK6RQF9R4EN9-review); resumes when it arrives in the inbox

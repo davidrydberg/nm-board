@@ -1,0 +1,14 @@
+current_branch: unknown
+count: 10 of 150 total
+runs[10]{id,branch,status,head,pr}:
+  "01JXB56R3S8P2RMK6RQF9R4EN9",fm/pack-option-api,running,65196de5,""
+  "01JXKBPKM7251404K0FE03ZA8Y",fm/api-payment-timeouts,running,81d767e6,"https://github.com/example-org/shop-api/pull/191"
+  "01JXZ32ZY01VDWG91C5QPCT6HR",fm/api-tenant-rules,running,717628be,"https://github.com/example-org/shop-api/pull/190"
+  "01JX82KWP5557NV9SSVN0JY879",fm/api-verified-ops,running,f37d7819,"https://github.com/example-org/shop-api/pull/189"
+  "01JX1A05PNE4W9WVSYDYRHMD7C",fm/api-catalog-scope,running,6e672c82,"https://github.com/example-org/shop-api/pull/188"
+  "01JXDWFX46FHF6F4JNTZV1NBS3",fm/api-client-version,completed,c04a4ff6,"https://github.com/example-org/shop-api/pull/187"
+  "01JXX0MR0K5M67JAD9NHST82A3",fm/api-fetch-cap,completed,8e130383,"https://github.com/example-org/shop-api/pull/186"
+  "01JXAQEPA85RB5X8098MVG2ACK",fm/api-comment-sweep,completed,def897f7,"https://github.com/example-org/shop-api/pull/185"
+  "01JXA88TD3YDHKV7PBMGCKRQBW",fm/api-bugfix-sweep,completed,94e7173c,"https://github.com/example-org/shop-api/pull/184"
+  "01JX979RMTKS95YAP9TJQCZ1RD",fm/api-freeze-totals,running,bf496922,"https://github.com/example-org/shop-api/pull/183"
+help[1]: "This worktree has no current branch (detached HEAD), so no run can be attributed to it; inspect a specific run with `no-mistakes axi status --run <id>`, or check out a branch first"

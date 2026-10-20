@@ -1,0 +1,23 @@
+run:
+  id: "01JXHQQMXAAMQFC2392B359VRQ"
+  branch: fm/pack-option-web
+  status: running
+  head: 31e47d6f
+  head_sha: 31e47d6c3344de32e6fcb7de827f4bbe40a6a279
+  verification_plan: none
+  pr: "https://github.com/example-org/shop-web/pull/87"
+  findings: 1 awaiting
+  steps[9]{step,status,findings,duration_ms}:
+    intent,completed,0,3
+    rebase,completed,0,2848
+    review,completed,1,77509
+    test,completed,0,850477
+    document,completed,0,33638
+    lint,completed,0,816
+    push,completed,0,3989
+    pr,completed,0,27799
+    ci,running,0,0
+  shared_work[1]{attributed_to,scope,duration_ms}:
+    document,document+lint housekeeping,33638
+  active_steps[1]{step,status,active_for,round_active_for,last_activity,agent_pid,round}:
+    ci,running,1d9h,1d9h,"1m29s ago: log: no CI checks reported yet, waiting for checks to register...","",starting

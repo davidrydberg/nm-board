@@ -1,0 +1,55 @@
+run:
+  id: "01JXN6EKWZ8GEXAZ2ZSQHDY3Q6"
+  branch: fm/api-me-role
+  status: failed
+  head: fc46c759
+  head_sha: fc46c75a80217b0ecda537f34f8d890ec9568a92
+  verification_plan: none
+  pr: "https://github.com/example-org/shop-api/pull/178"
+  findings: none
+  steps[9]{step,status,findings,duration_ms}:
+    intent,completed,0,1
+    rebase,completed,0,1531
+    review,completed,0,790
+    test,completed,0,141276
+    document,completed,0,995
+    lint,completed,0,16361
+    push,completed,0,7779
+    pr,failed,0,22651
+    ci,pending,0,0
+  shared_work[1]{attributed_to,scope,duration_ms}:
+    document,document+lint housekeeping,995
+branch_sync:
+  state: diverged
+  changed: false
+  local:
+    branch: fm/api-me-role
+    head: 1a145a58bf0751f77988d3b6e81a7641369b9df3
+    clean: true
+  pipeline:
+    run: "01JXN6EKWZ8GEXAZ2ZSQHDY3Q6"
+    status: failed
+    phase: ""
+    submitted_head: 1a145a58bf0751f77988d3b6e81a7641369b9df3
+    current_head: fc46c75a80217b0ecda537f34f8d890ec9568a92
+    pushed_head: fc46c75a80217b0ecda537f34f8d890ec9568a92
+    pushed_at: 1792229559
+    push_generation: 2
+  target:
+    kind: upstream
+    remote: origin
+    url: "https://github.com/example-org/shop-api.git"
+    ref: refs/heads/fm/api-me-role
+  remote:
+    observed_head: fc46c75a80217b0ecda537f34f8d890ec9568a92
+    freshness: pipeline_push
+    observed_at: 1792229559
+  relation: diverged
+  safety: blocked_diverged
+  pr_state: open
+  note: local and pipeline-pushed histories have diverged; no files or refs were changed
+  next_action:
+    code: inspect_and_reconcile_manually
+    command: git log --oneline --left-right HEAD...fc46c75a80217b0ecda537f34f8d890ec9568a92
+outcome: failed
+error: "step pr failed: gh pr create: pull request create failed: GraphQL: No commits between main and fm/api-me-role (createPullRequest): exit status 1"

@@ -1,0 +1,50 @@
+run:
+  id: "01JXTZV2NK707GDHGNWND1Q67N"
+  branch: fm/api-nightly-email-check
+  status: completed
+  head: ccba6cdf
+  head_sha: ccba6cddd0d298a376230f665ccca12dfaae55b5
+  verification_plan: none
+  pr: "https://github.com/example-org/shop-api/pull/172"
+  findings: none
+  steps[9]{step,status,findings,duration_ms}:
+    intent,completed,0,2
+    rebase,completed,0,2681
+    review,completed,0,36086
+    test,completed,0,242122
+    document,completed,0,32459
+    lint,completed,0,804
+    push,completed,0,8113
+    pr,completed,0,16783
+    ci,completed,0,12294318
+  shared_work[1]{attributed_to,scope,duration_ms}:
+    document,document+lint housekeeping,32459
+branch_sync:
+  state: merged_remote_retained
+  changed: false
+  local:
+    branch: fm/api-nightly-email-check
+    head: 64133de7e421ff10919ba877d8422eebc52bb4ea
+    clean: true
+  pipeline:
+    run: "01JXTZV2NK707GDHGNWND1Q67N"
+    status: completed
+    phase: ""
+    submitted_head: 97ef130a8873f201547500cbf116504238596bd3
+    current_head: ccba6cddd0d298a376230f665ccca12dfaae55b5
+    pushed_head: ccba6cddd0d298a376230f665ccca12dfaae55b5
+    pushed_at: 1792141369
+    push_generation: 4
+  target:
+    kind: upstream
+    remote: origin
+    url: "https://github.com/example-org/shop-api.git"
+    ref: refs/heads/fm/api-nightly-email-check
+  remote:
+    observed_head: ccba6cddd0d298a376230f665ccca12dfaae55b5
+    freshness: pipeline_push
+    observed_at: 1792141369
+  relation: unknown
+  safety: blocked_merged
+  pr_state: merged
+outcome: passed
