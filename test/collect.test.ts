@@ -218,5 +218,5 @@ test('execRunner reports stderr and keeps stdout on failure', async () => {
 	const r = await execRunner({name: 'sh', args: ['-c', "echo partial; echo 'boom happened' >&2; exit 3"]}, 5000);
 	assert.deepEqual(r, {stdout: 'partial\n', error: 'sh: boom happened'});
 	const missing = await execRunner({name: 'fleetwatch-no-such-command', args: []}, 5000);
-	assert.match(missing.error ?? '', /^fleetwatch-no-such-command: .*ENOENT/);
+	assert.equal(missing.error, 'fleetwatch-no-such-command is not installed or not on PATH');
 });

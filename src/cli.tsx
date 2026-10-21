@@ -66,7 +66,7 @@ if (command !== undefined) fail(`unknown command: ${args.positionals.join(' ')}\
 function herdrSetup(): never {
 	process.stdout.write(`Linking the fleetwatch herdr plugin from ${PLUGIN_DIR}\n`);
 	const r = spawnSync('herdr', ['plugin', 'link', PLUGIN_DIR], {stdio: 'inherit'});
-	if (r.error) fail(`herdr: ${r.error.message}`);
+	if (r.error) fail((r.error as NodeJS.ErrnoException).code === 'ENOENT' ? 'herdr is not installed or not on PATH' : `herdr: ${r.error.message}`);
 	if (r.status !== 0) fail(`herdr plugin link failed; if an older fleetwatch plugin is linked, run \`herdr plugin unlink ${PLUGIN_ID}\` first`);
 	process.stdout.write(`Done. Inside herdr, Enter now opens a run in a popup. Undo with \`herdr plugin unlink ${PLUGIN_ID}\`.\n`);
 	process.exit(0);

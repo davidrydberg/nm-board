@@ -36,7 +36,7 @@ if (env['FLEETWATCH_DEMO'] === '1') {
 		// The pty binding loads only here, so demo mode never needs it.
 		const {attachWithEsc} = await import('./view/attach.js');
 		status = await attachWithEsc(env['FLEETWATCH_CWD'] ?? '', runId);
-		if (status !== 0) await waitForKey(`no-mistakes exited with status ${status}`);
+		if (status !== 0) await waitForKey(`no-mistakes exited with status ${status}; if it printed nothing above, it may not be on the PATH herdr runs plugins with`);
 	} catch (error) {
 		await waitForKey(`fleetwatch: could not open the run: ${(error as Error).message}`);
 		status = 1;
