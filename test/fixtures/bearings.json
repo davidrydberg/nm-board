@@ -32,7 +32,7 @@
       "id": "cli-status-view",
       "kind": "ship",
       "state": "working",
-      "repo": "fleetwatch",
+      "repo": "nm-watch",
       "name": "Status view: a live terminal view of running agents",
       "doing": "harness busy (claude-hook)"
     },

@@ -5,7 +5,7 @@ import {openDecisions, type CrewState, type Meta, type StatusEntry} from './task
 // SECONDMATE_GROUP is the project group secondmate homes are listed under.
 export const SECONDMATE_GROUP = 'secondmates';
 
-// Agent is one row fleetwatch shows: an underway task or a secondmate home.
+// Agent is one row nm-watch shows: an underway task or a secondmate home.
 export interface Agent {
 	// id is the bearings id; secondmate children read "<secondmate>/<task>".
 	id: string;
@@ -21,7 +21,7 @@ export interface Agent {
 	state: string;
 	doing: string;
 	secondmate: boolean;
-	// absent marks an agent fleetwatch does not read, such as a remote
+	// absent marks an agent nm-watch does not read, such as a remote
 	// secondmate home reachable only over ssh.
 	absent: boolean;
 	absentReason: string;
@@ -101,7 +101,7 @@ export function buildRoster(b: Bearings, home: string, smMeta: Map<string, Meta>
 			absentReason: !isRemote
 				? ''
 				: host
-					? `remote home on ${host} is not read by fleetwatch v1`
+					? `remote home on ${host} is not read by nm-watch v1`
 					: 'secondmate home is not readable from this host',
 		});
 	}

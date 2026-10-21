@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs fleetwatch's run view on the Node that fleetwatch runs on, which
-# fleetwatch passes in FLEETWATCH_NODE. herdr starts plugin panes in the
+# Runs nm-watch's run view on the Node that nm-watch runs on, which
+# nm-watch passes in NM_WATCH_NODE. herdr starts plugin panes in the
 # plugin directory.
-exec "${FLEETWATCH_NODE:-node}" ../dist/view.js
+exec "${NM_WATCH_NODE:-node}" ../dist/view.js

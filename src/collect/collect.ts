@@ -19,7 +19,7 @@ export interface Config {
 	fleetTimeoutMs: number;
 	taskTimeoutMs: number;
 	concurrency: number; // concurrent local commands
-	// herdrSocket is the API socket of the herdr server fleetwatch runs in;
+	// herdrSocket is the API socket of the herdr server nm-watch runs in;
 	// with it, runs open in a herdr popup.
 	herdrSocket?: string;
 }
@@ -36,7 +36,7 @@ export interface Source {
 	fleet(): Promise<Fleet>;
 	task(a: Agent): Promise<Detail>;
 	// popup opens no-mistakes' own view of one run in a herdr popup over the
-	// board. It resolves false when fleetwatch does not run inside herdr.
+	// board. It resolves false when nm-watch does not run inside herdr.
 	popup(a: Agent, worktree: string, runId: string): Promise<boolean>;
 	// attach hands the terminal to no-mistakes' own view of one run until the
 	// captain leaves it.

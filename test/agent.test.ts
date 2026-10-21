@@ -31,7 +31,7 @@ test('a remote secondmate is one absent row and its children are not listed', ()
 	assert.equal(sm.absent, true);
 	assert.equal(sm.secondmate, true);
 	assert.equal(sm.repo, SECONDMATE_GROUP);
-	assert.equal(sm.absentReason, 'remote home on buildbox is not read by fleetwatch v1');
+	assert.equal(sm.absentReason, 'remote home on buildbox is not read by nm-watch v1');
 	assert.equal(currentState(sm), 'absent');
 	assert.deepEqual(captainDecisions(sm, undefined, b.decisions), []);
 	const a = agents[0]!;
@@ -45,7 +45,7 @@ test('without its meta, a secondmate is remote by the snapshot reconcile host', 
 	const agents = buildRoster(bearings(), '/fm', new Map());
 	const sm = agents.at(-1)!;
 	assert.equal(sm.absent, true);
-	assert.equal(sm.absentReason, 'remote home on buildbox is not read by fleetwatch v1');
+	assert.equal(sm.absentReason, 'remote home on buildbox is not read by nm-watch v1');
 });
 
 test('a local secondmate child is read from that secondmate home', () => {

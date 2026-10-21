@@ -61,7 +61,7 @@ export function header(m: Model): string {
 		if (inf?.state === 'working') working++;
 		if (inf && inf.decisions.length > 0) waiting++;
 	}
-	let left = accent('fleetwatch') + dim(m.bearings.home ? ` · ${m.bearings.home}` : '');
+	let left = accent('nm-watch') + dim(m.bearings.home ? ` · ${m.bearings.home}` : '');
 	if (m.loaded) {
 		left += ` · ${m.agents.length} agents · ${chalk.green(String(working))} working`;
 		if (waiting > 0) left += ' · ' + decision(`${waiting} need the captain`);

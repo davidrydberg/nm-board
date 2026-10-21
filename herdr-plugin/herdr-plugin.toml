@@ -1,11 +1,11 @@
-# The herdr plugin fleetwatch opens runs through. `fleetwatch herdr-setup`
+# The herdr plugin nm-watch opens runs through. `nm-watch herdr-setup`
 # links it. It declares one popup pane and nothing else: no actions, startup
 # hooks, event hooks, or keybindings.
-id = "fleetwatch"
-name = "fleetwatch"
+id = "nm-watch"
+name = "nm-watch"
 version = "0.1.0"
 min_herdr_version = "0.7.4"
-description = "Open a no-mistakes run from the fleetwatch board in a popup"
+description = "Open a no-mistakes run from the nm-watch board in a popup"
 platforms = ["linux", "macos"]
 
 [[panes]]

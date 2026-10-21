@@ -11,7 +11,7 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 
 // App renders the model and runs its effects: every read goes through the
 // source in the background, and its result returns to the model as an event.
-// Opening a run shows it in a herdr popup over the board when fleetwatch runs
+// Opening a run shows it in a herdr popup over the board when nm-watch runs
 // inside herdr; otherwise it suspends the app and hands the terminal to
 // no-mistakes until the captain leaves its view.
 export function App({model, source}: {model: Model; source: Source}) {
@@ -52,7 +52,7 @@ export function App({model, source}: {model: Model; source: Source}) {
 						(opened) => {
 							if (!opened) fullScreen();
 						},
-						(error: unknown) => fullScreen(`no herdr popup (${message(error)}); fleetwatch herdr-setup links it`),
+						(error: unknown) => fullScreen(`no herdr popup (${message(error)}); nm-watch herdr-setup links it`),
 					);
 					break;
 				}

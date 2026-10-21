@@ -108,12 +108,12 @@ test('outside herdr, or without the plugin, enter falls back to the full-screen 
 	}
 
 	const unlinked = popupSource(async () => {
-		throw new Error('herdr: plugin fleetwatch is not installed');
+		throw new Error('herdr: plugin nm-watch is not installed');
 	});
 	const b = await pressEnter(unlinked.source, true);
 	try {
 		assert.deepEqual(unlinked.attached, ['pack-option-api']);
-		assert.equal(b.model.flash, 'no herdr popup (herdr: plugin fleetwatch is not installed); fleetwatch herdr-setup links it');
+		assert.equal(b.model.flash, 'no herdr popup (herdr: plugin nm-watch is not installed); nm-watch herdr-setup links it');
 	} finally {
 		b.app.unmount();
 	}
