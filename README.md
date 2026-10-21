@@ -46,7 +46,7 @@ It reads `bin/fm-bearings-snapshot.sh`, `bin/fm-crew-state.sh`, and `state/<task
 
 ## Install
 
-The npm package is named nm-board because nm-watch was too close to an existing package name, but the command you run is `nm-watch`.
+The project and its npm package are named nm-board, because nm-watch was too close to an existing npm package name, but the command you run is `nm-watch`.
 
 ```sh
 npm i -g nm-board
@@ -60,8 +60,8 @@ If the install fails with `EACCES`, point npm at a folder you own, as the [npm d
 To install from a clone instead:
 
 ```sh
-git clone https://github.com/davidrydberg/nm-watch
-cd nm-watch
+git clone https://github.com/davidrydberg/nm-board
+cd nm-board
 npm install
 npm run build
 npm i -g .

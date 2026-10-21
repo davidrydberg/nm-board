@@ -32,11 +32,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/davidrydberg/nm-watch.git"
+    "url": "git+https://github.com/davidrydberg/nm-board.git"
   },
-  "homepage": "https://github.com/davidrydberg/nm-watch#readme",
+  "homepage": "https://github.com/davidrydberg/nm-board#readme",
   "bugs": {
-    "url": "https://github.com/davidrydberg/nm-watch/issues"
+    "url": "https://github.com/davidrydberg/nm-board/issues"
   },
   "dependencies": {
     "@lydell/node-pty": "^1.2.0-beta.15",
