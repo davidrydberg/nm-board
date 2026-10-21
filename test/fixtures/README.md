@@ -18,8 +18,6 @@ Each one keeps the exact shape of the real command output or state file it stand
 | `nm-runs-list.toon` | `no-mistakes axi status` in a detached worktree of a repo with runs |
 | `*.meta` | `state/<task>.meta` of a ship task, a scout, and a remote secondmate |
 | `*.status` | `state/<task>.status` |
-| `*.busy-state` | `state/<task>.busy-state` |
-| `gh-*.json` | `gh pr view <url> --json number,title,state,isDraft,reviewDecision,mergeStateStatus,statusCheckRollup,url,headRefName` |
 
 When a tool's output format changes, update the matching fixture to the new shape with synthetic values, and adjust the expectations in the tests that read it.
 Never paste real fleet output here: it carries private task ids, repositories, paths, and text.

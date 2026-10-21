@@ -7,15 +7,13 @@ import {
 	currentDoing,
 	currentState,
 	isInactive,
-	lastActivity,
-	prUrl,
 	SECONDMATE_GROUP,
 	type Agent,
 	type Detail,
 } from '../src/fleet/agent.js';
 import {MAIN_OWNER, parseBearings, type Bearings} from '../src/fleet/bearings.js';
 import {parsePipeline} from '../src/fleet/pipeline.js';
-import {parseBusy, parseCrewState, parseMeta, parseStatusLog} from '../src/fleet/task.js';
+import {parseCrewState, parseMeta, parseStatusLog} from '../src/fleet/task.js';
 import {fixture} from './helpers.js';
 
 const bearings = () => parseBearings(fixture('bearings.json'));
@@ -104,24 +102,4 @@ test('crew-state wins over the bearings reading once read', () => {
 		['done', 'unknown', 'absent', 'parked', 'failed'].map(isInactive),
 		[true, true, true, false, false],
 	);
-});
-
-test('last activity is the newest of status stamps, status log writes, and busy events', () => {
-	const d = detail({status: parseStatusLog(fixture('api.status')), busy: parseBusy(fixture('idle.busy-state'))});
-	assert.equal(lastActivity(d), 1792522585_000);
-	d.busy = undefined;
-	assert.equal(lastActivity(d), 1792418228_000);
-	d.statusModified = 1792500000_000;
-	assert.equal(lastActivity(d), 1792500000_000);
-	assert.equal(lastActivity(undefined), undefined);
-});
-
-test('the PR comes from meta, then bearings, then the pipeline run', () => {
-	const b = bearings();
-	const a = {id: 'api-catalog-scope'} as Agent;
-	const pipeline = {...parsePipeline(fixture('nm-passed.toon')), pr: 'https://github.com/o/r/pull/3'};
-	assert.equal(prUrl(a, detail({pipeline}), b), 'https://github.com/example-org/shop-api/pull/188');
-	const meta = {...parseMeta(''), pr: 'https://github.com/o/r/pull/9'};
-	assert.equal(prUrl(a, detail({meta, pipeline}), b), meta.pr);
-	assert.equal(prUrl({id: 'other'} as Agent, detail({pipeline}), b), pipeline.pr);
 });

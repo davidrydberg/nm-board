@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
 import {mkdirSync, mkdtempSync, statSync, writeFileSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {test} from 'node:test';
 
-import {bearingsCmd, FleetSource, focusCmd, readTail, type Config} from '../src/collect/collect.js';
-import {execRunner, type Cmd, type Runner} from '../src/collect/run.js';
+import {attachCmd, bearingsCmd, FleetSource, readTail, type Config} from '../src/collect/collect.js';
+import {execHandover, execRunner, type Cmd, type Handover, type Runner} from '../src/collect/run.js';
 import type {Agent} from '../src/fleet/agent.js';
-import {PR_FIELDS} from '../src/fleet/pr.js';
 import {fixture} from './helpers.js';
 
 const tmp = () => mkdtempSync(path.join(os.tmpdir(), 'fleetwatch-test-'));
@@ -32,7 +32,7 @@ function home(task: string, files: Record<string, string>): string {
 }
 
 function config(h: string, cacheDir = ''): Config {
-	return {home: h, cacheDir, fleetTimeoutMs: 1000, taskTimeoutMs: 1000, prTimeoutMs: 1000, focusTimeoutMs: 1000, concurrency: 2, prConcurrency: 1};
+	return {home: h, cacheDir, fleetTimeoutMs: 1000, taskTimeoutMs: 1000, concurrency: 2};
 }
 
 const agent = (id: string, h: string): Agent => ({
@@ -79,16 +79,13 @@ test('fleet surfaces command and schema errors', async () => {
 test('task reads files, then crew-state, then the run crew-state names', async () => {
 	const worktree = tmp();
 	const h = home('pack-option-api', {
-		'.meta': `worktree=${worktree}\nkind=ship\nmode=no-mistakes\nbranch=fm/pack-option-api\nherdr_session=default\nherdr_pane_id=w27:p1B\n`,
+		'.meta': `worktree=${worktree}\nkind=ship\nmode=no-mistakes\nbranch=fm/pack-option-api\n`,
 		'.status': fixture('api.status'),
-		'.busy-state': fixture('idle.busy-state'),
 	});
 	const run = fakeRunner({'fm-crew-state.sh': fixture('crew-pack-option-api.txt'), 'no-mistakes': fixture('nm-gate.toon')});
 	const d = await new FleetSource(config(h), run).task(agent('pack-option-api', h));
-	assert.equal(d.meta?.herdrPane, 'w27:p1B');
+	assert.equal(d.meta?.worktree, worktree);
 	assert.equal(d.status.length, 5);
-	assert.equal(d.busy?.state, 'idle');
-	assert.ok(d.statusModified);
 	assert.equal(d.crew?.state, 'parked');
 	assert.equal(d.pipeline?.gate?.step, 'review');
 	const [crew, nm] = run.cmds;
@@ -127,31 +124,127 @@ test('absent agents and remote metas run no commands', async () => {
 	assert.equal(run.cmds.length, 0);
 });
 
-test('pr reads one pull request', async () => {
-	const run = fakeRunner({gh: fixture('gh-open-green.json')});
-	const url = 'https://github.com/example-org/shop-api/pull/188';
-	const pr = await new FleetSource(config('/fm'), run).pr(url);
-	assert.equal(pr.number, 188);
-	assert.deepEqual(run.cmds[0]!.args, ['pr', 'view', url, '--json', PR_FIELDS]);
-	await assert.rejects(new FleetSource(config('/fm'), fakeRunner({}, {gh: 'gh: HTTP 404'})).pr(url), /HTTP 404/);
+// fakeHandover records the commands it is handed and fails with error.
+function fakeHandover(error?: string): Handover & {cmds: Cmd[]} {
+	const cmds: Cmd[] = [];
+	const run = async (cmd: Cmd) => {
+		cmds.push(cmd);
+		return error === undefined ? {stdout: ''} : {stdout: '', error};
+	};
+	return Object.assign(run, {cmds});
+}
+
+test("attach opens the run in no-mistakes' own view, in the task's worktree", async () => {
+	assert.deepEqual(attachCmd('/wt', '01JXB56R3S8P2RMK6RQF9R4EN9'), {name: 'no-mistakes', args: ['attach', '--run', '01JXB56R3S8P2RMK6RQF9R4EN9'], cwd: '/wt'});
+	const worktree = tmp();
+	const h = tmp();
+	const handover = fakeHandover();
+	const src = new FleetSource(config(h), fakeRunner({}), handover);
+	await src.attach(agent('pack-option-api', h), worktree, '01JXB56R3S8P2RMK6RQF9R4EN9');
+	await src.attach(agent('pack-option-api', h), path.join(worktree, 'gone'), '01JXB56R3S8P2RMK6RQF9R4EN9');
+	assert.deepEqual(
+		handover.cmds.map((c) => c.cwd),
+		[worktree, h],
+		'a gone worktree falls back to the home',
+	);
+	const failing = new FleetSource(config(h), fakeRunner({}), fakeHandover('no-mistakes: run not found'));
+	await assert.rejects(failing.attach(agent('pack-option-api', h), worktree, 'x'), /run not found/);
 });
 
-test('focus names the herdr session in both places', () => {
-	assert.deepEqual(focusCmd('default', 'wBR:p2'), {
-		name: 'herdr',
-		args: ['agent', 'focus', 'wBR:p2', '--session', 'default'],
-		env: {HERDR_SESSION: 'default'},
+test('execHandover explains a failed or missing command', async () => {
+	assert.deepEqual(await execHandover({name: 'sh', args: ['-c', 'exit 0']}), {stdout: ''});
+	assert.deepEqual(await execHandover({name: 'sh', args: ['-c', "echo 'Error: unknown run' >&2; exit 1"]}), {stdout: '', error: 'sh: Error: unknown run'});
+	assert.deepEqual(await execHandover({name: 'fleetwatch-no-such-command', args: []}), {
+		stdout: '',
+		error: 'fleetwatch-no-such-command is not installed or not on PATH',
 	});
-	assert.deepEqual(focusCmd('', 'wBR:p2'), {name: 'herdr', args: ['agent', 'focus', 'wBR:p2']});
+	assert.equal(process.listenerCount('SIGINT'), 0, 'SIGINT is handed back');
+});
+
+// ptyDriver runs a command on a new pty. It answers each "WAIT text" line by
+// waiting for the text in the output and each "TYPE keys" line by typing the
+// keys one at a time, then prints all the output.
+const ptyDriver = `
+import os, pty, select, sys, time
+pid, fd = pty.fork()
+if pid == 0:
+    os.execvp(sys.argv[1], sys.argv[1:])
+out = b''
+def wait(text):
+    global out
+    end = time.time() + 5
+    while text not in out and time.time() < end:
+        if select.select([fd], [], [], 0.05)[0]:
+            try:
+                out += os.read(fd, 4096)
+            except OSError:
+                return
+for line in sys.stdin.read().splitlines():
+    verb, arg = line.split(' ', 1)
+    if verb == 'WAIT':
+        wait(arg.encode())
+    for key in arg.encode() if verb == 'TYPE' else b'':
+        os.write(fd, bytes([key]))
+        time.sleep(0.05)
+try:
+    os.kill(pid, 9)
+except OSError:
+    pass
+sys.stdout.write(out.decode(errors='replace'))
+`;
+
+const hasPython = (() => {
+	try {
+		execFileSync('python3', ['-c', 'import pty']);
+		return true;
+	} catch {
+		return false;
+	}
+})();
+
+test('execHandover gives the command every key typed while it runs', {skip: !hasPython && 'needs python3 for a pty'}, () => {
+	// The app reads its terminal the way Ink does. On e it stops listening and
+	// hands the terminal over from inside its read loop, as Ink's
+	// suspendTerminal does, so the loop's last read asks Node to read ahead.
+	const app = path.join(tmp(), 'app.mjs');
+	writeFileSync(
+		app,
+		`import {execHandover} from ${JSON.stringify(new URL('../src/collect/run.js', import.meta.url).href)};
+const stdin = process.stdin;
+stdin.setEncoding('utf8');
+stdin.setRawMode(true);
+const onReadable = () => {
+	let key;
+	while ((key = stdin.read()) !== null) {
+		process.stdout.write('[app ' + key + ']');
+		if (key === 'z') process.exit(0);
+		if (key !== 'e') continue;
+		stdin.removeListener('readable', onReadable);
+		stdin.setRawMode(false);
+		execHandover({name: 'sh', args: ['-c', 'stty raw -echo; echo "[command ready]"; echo "[command $(dd bs=1 count=4 2>/dev/null)]"; stty sane']}).then(() => {
+			stdin.setRawMode(true);
+			stdin.on('readable', onReadable);
+			process.stdout.write('[app back]');
+		});
+	}
+};
+stdin.on('readable', onReadable);
+process.stdout.write('[app ready]');
+`,
+	);
+	const out = execFileSync('python3', ['-c', ptyDriver, process.execPath, app], {
+		input: ['WAIT [app ready]', 'TYPE e', 'WAIT [command ready]', 'TYPE abcd', 'WAIT [app back]', 'TYPE z', 'WAIT [app z]'].join('\n'),
+		encoding: 'utf8',
+	});
+	assert.match(out, /\[command abcd\]/, out);
+	assert.deepEqual(out.match(/\[app [a-z]\]/g), ['[app e]', '[app z]'], out);
 });
 
 test('readTail starts at a whole line', async () => {
 	const file = path.join(tmp(), 'log');
 	writeFileSync(file, 'first line\nsecond line\nthird\n');
-	const tail = await readTail(file, 14);
-	assert.equal(tail.text, 'third\n');
-	assert.ok(tail.modified > 0);
-	assert.equal((await readTail(file, 1024)).text, 'first line\nsecond line\nthird\n');
+	assert.equal(await readTail(file, 14), 'third\n');
+	assert.equal(await readTail(file, 1024), 'first line\nsecond line\nthird\n');
 });
 
 test('execRunner kills the whole process group on timeout', async () => {

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// fleetwatch is a live terminal view of firstmate's agents.
+// fleetwatch is a live terminal board of firstmate's no-mistakes runs.
 
 import {statSync} from 'node:fs';
 import os from 'node:os';
@@ -8,7 +8,7 @@ import {parseArgs} from 'node:util';
 import {render} from 'ink';
 
 import {FleetSource} from './collect/collect.js';
-import {execRunner} from './collect/run.js';
+import {execHandover, execRunner} from './collect/run.js';
 import {App} from './tui/app.js';
 import {Model} from './tui/model.js';
 
@@ -61,18 +61,15 @@ const source = new FleetSource(
 		cacheDir: path.join(userCacheDir(), 'fleetwatch', 'secondmate-summary-cache'),
 		fleetTimeoutMs: 60_000,
 		taskTimeoutMs: 15_000,
-		prTimeoutMs: 20_000,
-		focusTimeoutMs: 5_000,
 		concurrency: 4,
-		prConcurrency: 2,
 	},
 	execRunner,
+	execHandover,
 );
 const model = new Model({
 	intervalMs: INTERVAL_MS,
 	inactiveIntervalMs: 6 * INTERVAL_MS,
 	fleetIntervalMs: 15_000,
-	prIntervalMs: 90_000,
 });
 
 const app = render(<App model={model} source={source} />, {alternateScreen: true});

@@ -129,23 +129,54 @@ export function parsePipeline(out: string): Pipeline {
 	return p;
 }
 
-// stage is a short label for where the run stands, for list rows.
-export function stage(p: Pipeline): string {
-	if (p.noRun) return 'no run';
-	if (p.gate) return `${p.gate.step} gate`;
-	if (p.outcome) {
-		const failed = p.steps.find((s) => s.status === 'failed');
-		if (failed && p.outcome !== 'passed') return `${p.outcome} at ${failed.name}`;
-		return p.outcome;
-	}
-	const active = p.active[0];
-	if (active) return `${active.step} ${active.status}`;
-	const open = p.steps.find((s) => s.status !== 'completed' && s.status !== 'skipped');
-	if (open) return `${open.name} ${open.status}`;
-	return p.status;
-}
-
 // askUser lists gate findings that wait on a human authority decision.
 export function askUser(p: Pipeline): Finding[] {
 	return p.gate?.findings.filter((f) => f.action.toLowerCase() === 'ask-user') ?? [];
+}
+
+// PIPELINE_STEPS is no-mistakes' step order. A run reporting other steps adds
+// them in its own order.
+export const PIPELINE_STEPS = ['intent', 'rebase', 'review', 'test', 'document', 'lint', 'push', 'pr', 'ci'];
+
+// Position is where a run stands: the step it is at, or finished, with that
+// step's status or the run's outcome as no-mistakes names it. spent is how
+// long it has been there, when no-mistakes reports it.
+export interface Position {
+	step: string;
+	finished: boolean;
+	status: string;
+	spent: string;
+}
+
+const terminalRun = new Set(['completed', 'failed', 'cancelled']);
+
+// position places a run on its gate's step, else its active step. A failed
+// run stays on the step that failed; any other finished run is finished.
+export function position(p: Pipeline): Position {
+	if (p.gate) return {step: p.gate.step, finished: false, status: p.gate.status, spent: parkedFor(p.awaitingAgent)};
+	const active = p.active[0];
+	if (active) return {step: active.step, finished: false, status: active.status, spent: active.activeFor};
+	const outcome = p.outcome || (terminalRun.has(p.status) ? p.status : '');
+	const failed = p.steps.find((s) => s.status === 'failed');
+	if (outcome === 'failed' && failed) return {step: failed.name, finished: false, status: 'failed', spent: ''};
+	if (outcome) return {step: '', finished: true, status: outcome, spent: ''};
+	const open = p.steps.find((s) => s.status !== 'completed' && s.status !== 'skipped');
+	if (open) return {step: open.name, finished: false, status: open.status, spent: ''};
+	return {step: '', finished: true, status: p.status, spent: ''};
+}
+
+// parkedFor reads the wait out of awaiting_agent, such as "parked 1d9h".
+function parkedFor(awaiting: string): string {
+	const last = awaiting.trim().split(/\s+/).at(-1) ?? '';
+	return /^(\d+[a-z]+)+$/.test(last) ? last : '';
+}
+
+// needsHuman reports a step status that waits on a person's decision.
+export function needsHuman(status: string): boolean {
+	return status === 'awaiting_approval' || status === 'fix_review' || status === 'failed';
+}
+
+// statusLabel spells a status in words: awaiting_approval reads awaiting approval.
+export function statusLabel(status: string): string {
+	return status.replaceAll('_', ' ');
 }
