@@ -28,7 +28,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsc -p tsconfig.json && node --test --test-reporter=spec 'build-test/test/**/*.test.js'",
     "prepack": "npm run build",
-    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+    "prepublishOnly": "npm test"
   },
   "repository": {
     "type": "git",

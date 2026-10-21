@@ -276,7 +276,7 @@ CI runs the type-check, the tests, and the build on Node 22 and 24.
 ## Releasing
 
 `main` only accepts pull requests, so bump the version on a branch and publish from the merged `main`.
-`prepublishOnly` runs the type-check, the tests, and the build, so a broken version cannot be published.
+`prepublishOnly` runs the type-check and the tests, and `prepack` runs the build, so a broken version cannot be published.
 
 ```sh
 npm version patch --no-git-tag-version  # or minor/major; open and merge a PR with the bump
