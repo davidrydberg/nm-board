@@ -74,19 +74,49 @@ function failure(name: string, stderr: string, code: number | null, signal: Node
 // Handover runs a command that takes over the terminal until it exits.
 export type Handover = (cmd: Cmd) => Promise<RunResult>;
 
+// StreamHandle is the part of stdin's libuv handle that reads the terminal.
+// Node sets `reading` before it calls readStart and clears it before readStop.
+interface StreamHandle {
+	reading?: boolean;
+	readStart(): number;
+	readStop(): number;
+}
+
+// holdStdin stops fleetwatch reading its terminal until the returned release
+// runs. Pausing the stream or removing its listeners is not enough: Node reads
+// ahead into the stream's buffer and would take keys typed for the command. So
+// the current read stops, and a read Node starts meanwhile waits for release.
+function holdStdin(): () => void {
+	const handle = (process.stdin as unknown as {_handle?: StreamHandle})._handle;
+	if (!handle || typeof handle.readStart !== 'function') return () => {};
+	let wanted = handle.reading === true;
+	if (wanted) handle.readStop();
+	handle.readStart = () => {
+		wanted = true;
+		return 0;
+	};
+	return () => {
+		delete (handle as Partial<StreamHandle>).readStart;
+		if (wanted && handle.reading) handle.readStart();
+	};
+}
+
 // execHandover runs a command on fleetwatch's own terminal: it reads stdin and
 // draws on stdout, and its stderr is kept to explain a failure. While it runs,
-// fleetwatch ignores SIGINT, so a Ctrl+C meant for the command cannot kill it.
+// fleetwatch neither reads stdin nor handles SIGINT, so every key and Ctrl+C
+// goes to the command.
 export const execHandover: Handover = (cmd) =>
 	new Promise((resolve) => {
 		const name = commandName(cmd);
 		let stderr = '';
 		const ignore = () => {};
 		process.on('SIGINT', ignore);
+		const releaseStdin = holdStdin();
 		let settled = false;
 		const finish = (error?: string) => {
 			if (settled) return;
 			settled = true;
+			releaseStdin();
 			process.off('SIGINT', ignore);
 			resolve(error === undefined ? {stdout: ''} : {stdout: '', error});
 		};

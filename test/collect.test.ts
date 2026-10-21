@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
 import {mkdirSync, mkdtempSync, statSync, writeFileSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -158,6 +159,85 @@ test('execHandover explains a failed or missing command', async () => {
 		error: 'fleetwatch-no-such-command is not installed or not on PATH',
 	});
 	assert.equal(process.listenerCount('SIGINT'), 0, 'SIGINT is handed back');
+});
+
+// ptyDriver runs a command on a new pty. It answers each "WAIT text" line by
+// waiting for the text in the output and each "TYPE keys" line by typing the
+// keys one at a time, then prints all the output.
+const ptyDriver = `
+import os, pty, select, sys, time
+pid, fd = pty.fork()
+if pid == 0:
+    os.execvp(sys.argv[1], sys.argv[1:])
+out = b''
+def wait(text):
+    global out
+    end = time.time() + 5
+    while text not in out and time.time() < end:
+        if select.select([fd], [], [], 0.05)[0]:
+            try:
+                out += os.read(fd, 4096)
+            except OSError:
+                return
+for line in sys.stdin.read().splitlines():
+    verb, arg = line.split(' ', 1)
+    if verb == 'WAIT':
+        wait(arg.encode())
+    for key in arg.encode() if verb == 'TYPE' else b'':
+        os.write(fd, bytes([key]))
+        time.sleep(0.05)
+try:
+    os.kill(pid, 9)
+except OSError:
+    pass
+sys.stdout.write(out.decode(errors='replace'))
+`;
+
+const hasPython = (() => {
+	try {
+		execFileSync('python3', ['-c', 'import pty']);
+		return true;
+	} catch {
+		return false;
+	}
+})();
+
+test('execHandover gives the command every key typed while it runs', {skip: !hasPython && 'needs python3 for a pty'}, () => {
+	// The app reads its terminal the way Ink does. On e it stops listening and
+	// hands the terminal over from inside its read loop, as Ink's
+	// suspendTerminal does, so the loop's last read asks Node to read ahead.
+	const app = path.join(tmp(), 'app.mjs');
+	writeFileSync(
+		app,
+		`import {execHandover} from ${JSON.stringify(new URL('../src/collect/run.js', import.meta.url).href)};
+const stdin = process.stdin;
+stdin.setEncoding('utf8');
+stdin.setRawMode(true);
+const onReadable = () => {
+	let key;
+	while ((key = stdin.read()) !== null) {
+		process.stdout.write('[app ' + key + ']');
+		if (key === 'z') process.exit(0);
+		if (key !== 'e') continue;
+		stdin.removeListener('readable', onReadable);
+		stdin.setRawMode(false);
+		execHandover({name: 'sh', args: ['-c', 'stty raw -echo; echo "[command ready]"; echo "[command $(dd bs=1 count=4 2>/dev/null)]"; stty sane']}).then(() => {
+			stdin.setRawMode(true);
+			stdin.on('readable', onReadable);
+			process.stdout.write('[app back]');
+		});
+	}
+};
+stdin.on('readable', onReadable);
+process.stdout.write('[app ready]');
+`,
+	);
+	const out = execFileSync('python3', ['-c', ptyDriver, process.execPath, app], {
+		input: ['WAIT [app ready]', 'TYPE e', 'WAIT [command ready]', 'TYPE abcd', 'WAIT [app back]', 'TYPE z', 'WAIT [app z]'].join('\n'),
+		encoding: 'utf8',
+	});
+	assert.match(out, /\[command abcd\]/, out);
+	assert.deepEqual(out.match(/\[app [a-z]\]/g), ['[app e]', '[app z]'], out);
 });
 
 test('readTail starts at a whole line', async () => {
