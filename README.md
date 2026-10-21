@@ -37,7 +37,7 @@ No firstmate fleet yet?
 | `no-mistakes` | The pipeline columns and Enter on a run (not needed for `--demo`) | `no-mistakes --version` | `curl -fsSL https://raw.githubusercontent.com/kunchenguid/no-mistakes/main/docs/install.sh \| sh` |
 | herdr 0.7.4 or newer, optional | The popup for Enter and Esc, after `nm-watch herdr-setup` once | `herdr --version` | [herdr.dev](https://herdr.dev) |
 
-The `gh` CLI is not a nm-watch requirement.
+The `gh` CLI is not an nm-watch requirement.
 nm-watch never calls it, and the board works with `gh` missing.
 firstmate and no-mistakes use an authenticated `gh` (`gh auth login`) to open and watch pull requests, so you need it to ship work, not to watch it.
 
