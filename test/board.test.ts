@@ -74,6 +74,7 @@ test('the filter matches task, project, and status', () => {
 			.map((c) => c.split(' ')[0]);
 	assert.deepEqual(shown('shop-web'), ['pack-option-web', 'web-admin-console']);
 	assert.deepEqual(shown('awaiting'), ['pack-option-api']);
+	assert.deepEqual(shown('awaiting approval'), ['pack-option-api'], 'the status matches as the card spells it');
 	assert.deepEqual(shown('mailer'), ['mailer-send-limits']);
 	assert.equal(Object.keys(board(reads, 'nothing-matches')).length, 11, 'columns stay while their cards are filtered out');
 });

@@ -129,22 +129,6 @@ export function parsePipeline(out: string): Pipeline {
 	return p;
 }
 
-// stage is a short label for where the run stands, for list rows.
-export function stage(p: Pipeline): string {
-	if (p.noRun) return 'no run';
-	if (p.gate) return `${p.gate.step} gate`;
-	if (p.outcome) {
-		const failed = p.steps.find((s) => s.status === 'failed');
-		if (failed && p.outcome !== 'passed') return `${p.outcome} at ${failed.name}`;
-		return p.outcome;
-	}
-	const active = p.active[0];
-	if (active) return `${active.step} ${active.status}`;
-	const open = p.steps.find((s) => s.status !== 'completed' && s.status !== 'skipped');
-	if (open) return `${open.name} ${open.status}`;
-	return p.status;
-}
-
 // askUser lists gate findings that wait on a human authority decision.
 export function askUser(p: Pipeline): Finding[] {
 	return p.gate?.findings.filter((f) => f.action.toLowerCase() === 'ask-user') ?? [];

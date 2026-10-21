@@ -7,7 +7,6 @@ import type {Fleet, Source} from '../src/collect/collect.js';
 import {buildRoster, type Agent, type Detail} from '../src/fleet/agent.js';
 import {parseBearings} from '../src/fleet/bearings.js';
 import {parsePipeline} from '../src/fleet/pipeline.js';
-import type {PR} from '../src/fleet/pr.js';
 import {parseCrewState, parseStatusLog} from '../src/fleet/task.js';
 import {App} from '../src/tui/app.js';
 import {Model} from '../src/tui/model.js';
@@ -32,15 +31,11 @@ test('the app renders fleet data from its source and reacts to keys', async () =
 				fetchedAt: Date.now(),
 			};
 		},
-		pr: async (): Promise<PR> => {
-			throw new Error('gh: offline');
-		},
-		focus: async () => {},
 		attach: async (a: Agent, worktree: string, runId: string) => {
 			attached.push(`${a.id}:${worktree}:${runId}`);
 		},
 	};
-	const model = new Model({intervalMs: 60_000, inactiveIntervalMs: 60_000, fleetIntervalMs: 60_000, prIntervalMs: 60_000});
+	const model = new Model({intervalMs: 60_000, inactiveIntervalMs: 60_000, fleetIntervalMs: 60_000});
 	const app = render(<App model={model} source={source} />);
 	try {
 		for (let i = 0; i < 50 && !model.infos.get('pack-option-api')?.decisions.length; i++) await sleep(20);
@@ -50,19 +45,12 @@ test('the app renders fleet data from its source and reacts to keys', async () =
 		assert.match(board, /pack-option-api/);
 		assert.match(board, /awaiting approval/);
 		assert.match(board, /shop-api +1d9h/);
-		assert.match(board, /PRs never \(\d+ unreadable\)/, 'freshness survives a narrow header');
+		assert.match(board, /fleet \d+s ago/, 'freshness survives a narrow header');
 		assert.ok(calls.includes('cli-status-view'));
 
 		app.stdin.write('\r');
 		for (let i = 0; i < 50 && attached.length === 0; i++) await sleep(20);
 		assert.deepEqual(attached, ['pack-option-api::01JXB56R3S8P2RMK6RQF9R4EN9']);
-
-		app.stdin.write('\t');
-		await sleep(50);
-		assert.match(app.lastFrame() ?? '', /CAPTAIN DECISIONS/);
-		app.stdin.write('d');
-		await sleep(50);
-		assert.match(app.lastFrame() ?? '', /d show \d+ inactive/);
 	} finally {
 		app.unmount();
 	}

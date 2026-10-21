@@ -1,7 +1,7 @@
 import stringWidth from 'string-width';
 
 import type {Agent, Detail} from '../fleet/agent.js';
-import {needsHuman, PIPELINE_STEPS, position} from '../fleet/pipeline.js';
+import {needsHuman, PIPELINE_STEPS, position, statusLabel} from '../fleet/pipeline.js';
 import {matches, type Info} from './rows.js';
 
 // NO_RUN leads the board with tasks that have no run yet; FINISHED ends it
@@ -56,7 +56,7 @@ export function buildBoard(agents: Agent[], details: Map<string, Detail>, infos:
 		const run = d?.pipeline?.steps.map((s) => s.name) ?? [];
 		if (at.column !== NO_RUN && at.column !== FINISHED) run.push(at.column);
 		steps = mergeSteps(steps, run);
-		if (needle && !matches(a, inf, needle) && !at.status.includes(needle) && !at.column.includes(needle)) return;
+		if (needle && !matches(a, inf, needle) && !statusLabel(at.status).includes(needle) && !at.column.includes(needle)) return;
 		const card = {agent: i, status: at.status, spent: at.spent, human: needsHuman(at.status)};
 		cards.set(at.column, [...(cards.get(at.column) ?? []), card]);
 	});

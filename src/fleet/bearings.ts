@@ -35,11 +35,6 @@ export interface Decision {
 	owner: string;
 }
 
-export interface RecordedPR {
-	id: string;
-	url: string;
-}
-
 // Bearings is the part of the bearings snapshot fleetwatch shows.
 export interface Bearings {
 	schema: string;
@@ -49,11 +44,10 @@ export interface Bearings {
 	secondmates: SecondmateRow[];
 	reconcile: SecondmateHost[];
 	decisions: Decision[];
-	recordedPrs: RecordedPR[];
 }
 
 export function emptyBearings(): Bearings {
-	return {schema: BEARINGS_SCHEMA, home: '', generated: '', inFlight: [], secondmates: [], reconcile: [], decisions: [], recordedPrs: []};
+	return {schema: BEARINGS_SCHEMA, home: '', generated: '', inFlight: [], secondmates: [], reconcile: [], decisions: []};
 }
 
 type Raw = Record<string, unknown>;
@@ -100,13 +94,7 @@ export function parseBearings(text: string): Bearings {
 			summary: str(r['summary']),
 			owner: str(r['owner']),
 		})),
-		recordedPrs: rows(b['recorded_prs']).map((r) => ({id: str(r['id']), url: str(r['url'])})),
 	};
-}
-
-// recordedPr returns the PR URL bearings recorded for a task, if any.
-export function recordedPr(b: Bearings, id: string): string {
-	return b.recordedPrs.find((r) => r.id === id)?.url ?? '';
 }
 
 // secondmateHost returns the host a secondmate home lives on, if recorded.

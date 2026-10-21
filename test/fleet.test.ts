@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict';
 import {describe, test} from 'node:test';
 
-import {parseBearings, recordedPr, secondmateHost} from '../src/fleet/bearings.js';
-import {askUser, needsHuman, parsePipeline, position, stage, statusLabel} from '../src/fleet/pipeline.js';
-import {checksSummary, isTerminal, parsePr} from '../src/fleet/pr.js';
+import {parseBearings, secondmateHost} from '../src/fleet/bearings.js';
+import {askUser, needsHuman, parsePipeline, position, statusLabel} from '../src/fleet/pipeline.js';
 import {parseToon, toonObject, toonString, toonTable} from '../src/fleet/toon.js';
-import {lastStamped, openDecisions, parseBusy, parseCrewState, parseMeta, parseStatusLog} from '../src/fleet/task.js';
+import {openDecisions, parseCrewState, parseMeta, parseStatusLog} from '../src/fleet/task.js';
 import {fixture} from './helpers.js';
 
 describe('parseToon', () => {
@@ -36,7 +35,6 @@ describe('parsePipeline', () => {
 	test('a run parked at a review gate', () => {
 		const p = parsePipeline(fixture('nm-gate.toon'));
 		assert.equal(p.status, 'running');
-		assert.equal(stage(p), 'review gate');
 		assert.equal(p.gate?.step, 'review');
 		assert.deepEqual(p.gate?.findings[1], {
 			id: 'invoice-fee-row-unverified',
@@ -53,7 +51,6 @@ describe('parsePipeline', () => {
 
 	test('a ci step monitoring a PR', () => {
 		const p = parsePipeline(fixture('nm-ci-running.toon'));
-		assert.equal(stage(p), 'ci running');
 		assert.deepEqual(p.active, [
 			{
 				step: 'ci',
@@ -70,15 +67,12 @@ describe('parsePipeline', () => {
 	test('terminal runs', () => {
 		const failed = parsePipeline(fixture('nm-failed-pr.toon'));
 		assert.equal(failed.outcome, 'failed');
-		assert.equal(stage(failed), 'failed at pr');
 		assert.match(failed.error, /^step pr failed: gh pr create/);
 
 		const passed = parsePipeline(fixture('nm-passed.toon'));
 		assert.equal(passed.status, 'completed');
-		assert.equal(stage(passed), 'passed');
 
 		const cancelled = parsePipeline(fixture('nm-cancelled.toon'));
-		assert.equal(stage(cancelled), 'cancelled at ci');
 		assert.equal(cancelled.branch, 'fm/web-admin-dev-sync');
 		assert.equal(cancelled.error, 'cancelled: aborted by user');
 		for (const p of [failed, passed, cancelled]) assert.equal(p.steps.length, 9);
@@ -94,7 +88,6 @@ describe('parsePipeline', () => {
 			assert.equal(p.noRun, true, file);
 			assert.equal(p.branch, branch, file);
 			assert.equal(p.note, note, file);
-			assert.equal(stage(p), 'no run');
 		}
 		assert.throws(() => parsePipeline('error: daemon unreachable\n'), /neither a run nor a current branch/);
 	});
@@ -145,9 +138,7 @@ describe('parseBearings', () => {
 			summary: b.decisions[2]!.summary,
 			owner: 'spare',
 		});
-		assert.equal(recordedPr(b, 'api-catalog-scope'), 'https://github.com/example-org/shop-api/pull/188');
 		assert.equal(secondmateHost(b, 'spare'), 'buildbox');
-		assert.equal(recordedPr(b, 'nope'), '');
 		assert.equal(secondmateHost(b, 'nope'), '');
 	});
 
@@ -226,7 +217,6 @@ describe('parseStatusLog', () => {
 		assert.equal(e.key, 'pack-signed-amount');
 		assert.equal(e.at, 1792411614_000);
 		assert.match(e.text, /^answered: Decision for pack-signed-amount/);
-		assert.equal(lastStamped(entries), 1792414994_000);
 		assert.deepEqual(openDecisions(entries), [], 'every decision was resolved');
 	});
 
@@ -257,53 +247,5 @@ describe('parseStatusLog', () => {
 		assert.equal(entries[2]!.key, '');
 		assert.equal(openDecisions(entries).length, 1, 'keyless decision stays open');
 		assert.equal(openDecisions(parseStatusLog(log + 'resolved [at=1792000100]: answered\n')).length, 0, 'keyless resolved closes it');
-	});
-});
-
-test('parseBusy', () => {
-	assert.deepEqual(parseBusy(fixture('busy.busy-state')), {state: 'busy', source: 'claude-hook', event: 'user-prompt-submit', at: 1792533201_000});
-	const idle = parseBusy(fixture('idle.busy-state'));
-	assert.equal(idle.state, 'idle');
-	assert.equal(idle.event, 'session-end');
-	assert.throws(() => parseBusy('v2 state=busy'), /unsupported record/);
-});
-
-describe('parsePr', () => {
-	test('gh pr view output', () => {
-		const open = parsePr(fixture('gh-open-green.json'));
-		assert.equal(open.number, 188);
-		assert.equal(open.state, 'OPEN');
-		assert.equal(open.draft, false);
-		assert.equal(open.mergeState, 'CLEAN');
-		assert.equal(isTerminal(open), false);
-		assert.equal(open.checks.total, 2);
-		assert.equal(open.checks.passed, 2);
-		assert.equal(checksSummary(open.checks), '2/2 passing');
-
-		assert.equal(checksSummary(parsePr(fixture('gh-no-checks.json')).checks), 'no checks');
-		const merged = parsePr(fixture('gh-merged.json'));
-		assert.equal(merged.state, 'MERGED');
-		assert.equal(isTerminal(merged), true);
-		assert.throws(() => parsePr('{}'), /no pull request number/);
-	});
-
-	test('a rollup mixing CheckRun and StatusContext entries', () => {
-		const pr = parsePr(
-			JSON.stringify({
-				number: 3,
-				state: 'OPEN',
-				statusCheckRollup: [
-					{__typename: 'CheckRun', name: 'test', status: 'COMPLETED', conclusion: 'FAILURE'},
-					{__typename: 'CheckRun', name: 'lint', status: 'IN_PROGRESS', conclusion: ''},
-					{__typename: 'CheckRun', name: 'docs', status: 'COMPLETED', conclusion: 'SKIPPED'},
-					{__typename: 'StatusContext', context: 'ci/legacy', state: 'PENDING'},
-					{__typename: 'StatusContext', context: 'deploy', state: 'SUCCESS'},
-				],
-			}),
-		);
-		const c = pr.checks;
-		assert.deepEqual([c.total, c.failed, c.pending, c.skipped, c.passed], [5, 1, 2, 1, 1]);
-		assert.equal(checksSummary(c), '1 failing: test');
-		assert.equal(checksSummary({...c, failed: 0, failedNames: []}), '2 pending: lint, ci/legacy');
 	});
 });

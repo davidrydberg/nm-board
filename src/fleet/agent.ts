@@ -1,6 +1,6 @@
-import {MAIN_OWNER, recordedPr, secondmateHost, type Bearings, type Decision} from './bearings.js';
+import {MAIN_OWNER, secondmateHost, type Bearings, type Decision} from './bearings.js';
 import {askUser, type Pipeline} from './pipeline.js';
-import {lastStamped, openDecisions, type Busy, type CrewState, type Meta, type StatusEntry} from './task.js';
+import {openDecisions, type CrewState, type Meta, type StatusEntry} from './task.js';
 
 // SECONDMATE_GROUP is the project group secondmate homes are listed under.
 export const SECONDMATE_GROUP = 'secondmates';
@@ -34,8 +34,6 @@ export interface Detail {
 	metaError?: string;
 	status: StatusEntry[];
 	statusError?: string;
-	statusModified?: number;
-	busy?: Busy;
 	crew?: CrewState;
 	crewError?: string;
 	pipeline?: Pipeline;
@@ -153,19 +151,4 @@ export function captainDecisions(a: Agent, d: Detail | undefined, open: Decision
 		for (const f of askUser(d.pipeline)) out.push({source: 'ask-user', key: f.id, text: f.description});
 	}
 	return out;
-}
-
-// lastActivity is the newest evidence of the agent doing something: its last
-// stamped status entry, its status log's last write (legacy entries carry no
-// stamp), or its harness's last busy/idle event.
-export function lastActivity(d?: Detail): number | undefined {
-	if (!d) return undefined;
-	const times = [lastStamped(d.status), d.statusModified, d.busy?.at].filter((t): t is number => t !== undefined);
-	return times.length > 0 ? Math.max(...times) : undefined;
-}
-
-// prUrl picks the agent's pull request: the one recorded in its meta, else the
-// one bearings recorded, else the one its pipeline run opened.
-export function prUrl(a: Agent, d: Detail | undefined, b: Bearings): string {
-	return d?.meta?.pr || recordedPr(b, a.id) || d?.pipeline?.pr || '';
 }

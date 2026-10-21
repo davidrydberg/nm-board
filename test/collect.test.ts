@@ -4,10 +4,9 @@ import os from 'node:os';
 import path from 'node:path';
 import {test} from 'node:test';
 
-import {attachCmd, bearingsCmd, FleetSource, focusCmd, readTail, type Config} from '../src/collect/collect.js';
+import {attachCmd, bearingsCmd, FleetSource, readTail, type Config} from '../src/collect/collect.js';
 import {execHandover, execRunner, type Cmd, type Handover, type Runner} from '../src/collect/run.js';
 import type {Agent} from '../src/fleet/agent.js';
-import {PR_FIELDS} from '../src/fleet/pr.js';
 import {fixture} from './helpers.js';
 
 const tmp = () => mkdtempSync(path.join(os.tmpdir(), 'fleetwatch-test-'));
@@ -32,7 +31,7 @@ function home(task: string, files: Record<string, string>): string {
 }
 
 function config(h: string, cacheDir = ''): Config {
-	return {home: h, cacheDir, fleetTimeoutMs: 1000, taskTimeoutMs: 1000, prTimeoutMs: 1000, focusTimeoutMs: 1000, concurrency: 2, prConcurrency: 1};
+	return {home: h, cacheDir, fleetTimeoutMs: 1000, taskTimeoutMs: 1000, concurrency: 2};
 }
 
 const agent = (id: string, h: string): Agent => ({
@@ -79,16 +78,13 @@ test('fleet surfaces command and schema errors', async () => {
 test('task reads files, then crew-state, then the run crew-state names', async () => {
 	const worktree = tmp();
 	const h = home('pack-option-api', {
-		'.meta': `worktree=${worktree}\nkind=ship\nmode=no-mistakes\nbranch=fm/pack-option-api\nherdr_session=default\nherdr_pane_id=w27:p1B\n`,
+		'.meta': `worktree=${worktree}\nkind=ship\nmode=no-mistakes\nbranch=fm/pack-option-api\n`,
 		'.status': fixture('api.status'),
-		'.busy-state': fixture('idle.busy-state'),
 	});
 	const run = fakeRunner({'fm-crew-state.sh': fixture('crew-pack-option-api.txt'), 'no-mistakes': fixture('nm-gate.toon')});
 	const d = await new FleetSource(config(h), run).task(agent('pack-option-api', h));
-	assert.equal(d.meta?.herdrPane, 'w27:p1B');
+	assert.equal(d.meta?.worktree, worktree);
 	assert.equal(d.status.length, 5);
-	assert.equal(d.busy?.state, 'idle');
-	assert.ok(d.statusModified);
 	assert.equal(d.crew?.state, 'parked');
 	assert.equal(d.pipeline?.gate?.step, 'review');
 	const [crew, nm] = run.cmds;
@@ -125,24 +121,6 @@ test('absent agents and remote metas run no commands', async () => {
 	const d = await new FleetSource(config(h), run).task(agent('spare', h));
 	assert.equal(d.meta?.remoteHost, 'buildbox');
 	assert.equal(run.cmds.length, 0);
-});
-
-test('pr reads one pull request', async () => {
-	const run = fakeRunner({gh: fixture('gh-open-green.json')});
-	const url = 'https://github.com/example-org/shop-api/pull/188';
-	const pr = await new FleetSource(config('/fm'), run).pr(url);
-	assert.equal(pr.number, 188);
-	assert.deepEqual(run.cmds[0]!.args, ['pr', 'view', url, '--json', PR_FIELDS]);
-	await assert.rejects(new FleetSource(config('/fm'), fakeRunner({}, {gh: 'gh: HTTP 404'})).pr(url), /HTTP 404/);
-});
-
-test('focus names the herdr session in both places', () => {
-	assert.deepEqual(focusCmd('default', 'wBR:p2'), {
-		name: 'herdr',
-		args: ['agent', 'focus', 'wBR:p2', '--session', 'default'],
-		env: {HERDR_SESSION: 'default'},
-	});
-	assert.deepEqual(focusCmd('', 'wBR:p2'), {name: 'herdr', args: ['agent', 'focus', 'wBR:p2']});
 });
 
 // fakeHandover records the commands it is handed and fails with error.
@@ -185,10 +163,8 @@ test('execHandover explains a failed or missing command', async () => {
 test('readTail starts at a whole line', async () => {
 	const file = path.join(tmp(), 'log');
 	writeFileSync(file, 'first line\nsecond line\nthird\n');
-	const tail = await readTail(file, 14);
-	assert.equal(tail.text, 'third\n');
-	assert.ok(tail.modified > 0);
-	assert.equal((await readTail(file, 1024)).text, 'first line\nsecond line\nthird\n');
+	assert.equal(await readTail(file, 14), 'third\n');
+	assert.equal(await readTail(file, 1024), 'first line\nsecond line\nthird\n');
 });
 
 test('execRunner kills the whole process group on timeout', async () => {

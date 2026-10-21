@@ -3,7 +3,7 @@ import {useEffect, useReducer, useRef} from 'react';
 
 import type {Source} from '../collect/collect.js';
 import type {Effect, Event, Model} from './model.js';
-import {boardLines, detailLines, footer, header, listLines} from './render.js';
+import {boardLines, footer, header} from './render.js';
 
 const TICK_MS = 1000;
 
@@ -38,18 +38,6 @@ export function App({model, source}: {model: Model; source: Source}) {
 							dispatch({type: 'task', id: e.agent.id, detail: {status: [], fetchedAt: model.now(), crewError: message(error)}}),
 					);
 					break;
-				case 'pr':
-					source.pr(e.url).then(
-						(pr) => dispatch({type: 'pr', url: e.url, pr}),
-						(error: unknown) => dispatch({type: 'prError', url: e.url, error: message(error)}),
-					);
-					break;
-				case 'focus':
-					source.focus(e.session, e.pane).then(
-						() => dispatch({type: 'focused', id: e.id}),
-						(error: unknown) => dispatch({type: 'focusError', id: e.id, error: message(error)}),
-					);
-					break;
 				case 'attach':
 					suspendTerminal(() => source.attach(e.agent, e.worktree, e.runId)).then(
 						() => dispatch({type: 'attached', id: e.agent.id}),
@@ -73,34 +61,11 @@ export function App({model, source}: {model: Model; source: Source}) {
 
 	useInput((input, key) => dispatch({type: 'key', input, key}));
 
-	const h = model.bodyHeight();
-	if (model.view === 'board') {
-		return (
-			<Box flexDirection="column" width={columns} height={rows}>
-				<Text wrap="truncate">{header(model)}</Text>
-				<Box height={h}>
-					<Text wrap="truncate">{boardLines(model).join('\n')}</Text>
-				</Box>
-				<Text wrap="truncate">{footer(model)}</Text>
-			</Box>
-		);
-	}
-	const selected = model.selectedAgent();
-	const detail = selected ? detailLines(model, selected, model.detailWidth()) : [];
-	const empty = model.loaded ? 'Select an agent.' : 'Waiting for the first fleet snapshot.';
 	return (
 		<Box flexDirection="column" width={columns} height={rows}>
 			<Text wrap="truncate">{header(model)}</Text>
-			<Box height={h}>
-				<Box width={model.listWidth()} flexShrink={0}>
-					<Text wrap="truncate">{listLines(model).join('\n')}</Text>
-				</Box>
-				<Box width={2} flexShrink={0}>
-					<Text color="gray">{Array.from({length: h}, () => '│').join('\n')}</Text>
-				</Box>
-				<Box width={model.detailWidth()} flexShrink={0}>
-					<Text wrap="truncate">{selected ? detail.slice(model.detailTop, model.detailTop + h).join('\n') : empty}</Text>
-				</Box>
+			<Box height={model.bodyHeight()}>
+				<Text wrap="truncate">{boardLines(model).join('\n')}</Text>
 			</Box>
 			<Text wrap="truncate">{footer(model)}</Text>
 		</Box>

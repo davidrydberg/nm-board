@@ -61,10 +61,7 @@ const source = new FleetSource(
 		cacheDir: path.join(userCacheDir(), 'fleetwatch', 'secondmate-summary-cache'),
 		fleetTimeoutMs: 60_000,
 		taskTimeoutMs: 15_000,
-		prTimeoutMs: 20_000,
-		focusTimeoutMs: 5_000,
 		concurrency: 4,
-		prConcurrency: 2,
 	},
 	execRunner,
 	execHandover,
@@ -73,7 +70,6 @@ const model = new Model({
 	intervalMs: INTERVAL_MS,
 	inactiveIntervalMs: 6 * INTERVAL_MS,
 	fleetIntervalMs: 15_000,
-	prIntervalMs: 90_000,
 });
 
 const app = render(<App model={model} source={source} />, {alternateScreen: true});

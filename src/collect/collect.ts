@@ -1,4 +1,4 @@
-// Reads fleet state from a firstmate home, no-mistakes, GitHub, and herdr.
+// Reads fleet state from a firstmate home and no-mistakes.
 // Every read is bounded by a timeout; nothing here writes to firstmate state.
 
 import {mkdir, open, readFile, stat} from 'node:fs/promises';
@@ -7,8 +7,7 @@ import path from 'node:path';
 import {buildRoster, type Agent, type Detail} from '../fleet/agent.js';
 import {parseBearings, type Bearings} from '../fleet/bearings.js';
 import {noRun, parsePipeline, type Pipeline} from '../fleet/pipeline.js';
-import {parsePr, PR_FIELDS, type PR} from '../fleet/pr.js';
-import {parseBusy, parseCrewState, parseMeta, parseStatusLog, type Meta} from '../fleet/task.js';
+import {parseCrewState, parseMeta, parseStatusLog, type Meta} from '../fleet/task.js';
 import {execHandover, type Cmd, type Handover, type Runner} from './run.js';
 
 export interface Config {
@@ -18,10 +17,7 @@ export interface Config {
 	cacheDir: string;
 	fleetTimeoutMs: number;
 	taskTimeoutMs: number;
-	prTimeoutMs: number;
-	focusTimeoutMs: number;
 	concurrency: number; // concurrent local commands
-	prConcurrency: number; // concurrent GitHub reads
 }
 
 // Fleet is one bearings read and the agents it yields.
@@ -35,8 +31,6 @@ export interface Fleet {
 export interface Source {
 	fleet(): Promise<Fleet>;
 	task(a: Agent): Promise<Detail>;
-	pr(url: string): Promise<PR>;
-	focus(session: string, pane: string): Promise<void>;
 	// attach hands the terminal to no-mistakes' own view of one run until the
 	// captain leaves it.
 	attach(a: Agent, worktree: string, runId: string): Promise<void>;
@@ -73,13 +67,6 @@ export function bearingsCmd(cfg: Pick<Config, 'home' | 'cacheDir'>): Cmd {
 	};
 }
 
-// focusCmd focuses a herdr pane. herdr routes reliably only when the session
-// is named both in HERDR_SESSION and as a trailing --session flag.
-export function focusCmd(session: string, pane: string): Cmd {
-	if (!session) return {name: 'herdr', args: ['agent', 'focus', pane]};
-	return {name: 'herdr', args: ['agent', 'focus', pane, '--session', session], env: {HERDR_SESSION: session}};
-}
-
 // attachCmd opens no-mistakes' own view of one run.
 export function attachCmd(cwd: string, runId: string): Cmd {
 	return {name: 'no-mistakes', args: ['attach', '--run', runId], cwd};
@@ -87,7 +74,6 @@ export function attachCmd(cwd: string, runId: string): Cmd {
 
 export class FleetSource implements Source {
 	private readonly local: Limiter;
-	private readonly remote: Limiter;
 
 	constructor(
 		private readonly cfg: Config,
@@ -96,7 +82,6 @@ export class FleetSource implements Source {
 		private readonly now: () => number = Date.now,
 	) {
 		this.local = new Limiter(Math.max(cfg.concurrency, 1));
-		this.remote = new Limiter(Math.max(cfg.prConcurrency, 1));
 	}
 
 	async fleet(): Promise<Fleet> {
@@ -121,8 +106,8 @@ export class FleetSource implements Source {
 		return {bearings, agents: buildRoster(bearings, this.cfg.home, smMeta)};
 	}
 
-	// task reads one agent's meta, status log, busy state, crew state, and
-	// no-mistakes run.
+	// task reads one agent's meta, status log, crew state, and no-mistakes
+	// run.
 	async task(a: Agent): Promise<Detail> {
 		const d: Detail = {status: [], fetchedAt: this.now()};
 		if (a.absent || !a.home) return d;
@@ -133,19 +118,9 @@ export class FleetSource implements Source {
 			d.metaError = (error as Error).message;
 		}
 		try {
-			const {text, modified} = await readTail(path.join(state, `${a.taskId}.status`), 64 * 1024);
-			d.status = parseStatusLog(text);
-			d.statusModified = modified;
+			d.status = parseStatusLog(await readTail(path.join(state, `${a.taskId}.status`), 64 * 1024));
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code !== 'ENOENT') d.statusError = (error as Error).message;
-		}
-		const busy = await readOptional(path.join(state, `${a.taskId}.busy-state`));
-		if (busy !== undefined) {
-			try {
-				d.busy = parseBusy(busy);
-			} catch {
-				// An unknown record version reads as no busy state.
-			}
 		}
 		if (d.meta?.remoteHost) return d;
 
@@ -191,18 +166,6 @@ export class FleetSource implements Source {
 		return p;
 	}
 
-	// pr reads one pull request and its checks.
-	async pr(url: string): Promise<PR> {
-		const r = await this.remote.run(() => this.run({name: 'gh', args: ['pr', 'view', url, '--json', PR_FIELDS]}, this.cfg.prTimeoutMs));
-		if (r.error) throw new Error(r.error);
-		return parsePr(r.stdout);
-	}
-
-	async focus(session: string, pane: string): Promise<void> {
-		const r = await this.run(focusCmd(session, pane), this.cfg.focusTimeoutMs);
-		if (r.error) throw new Error(r.error);
-	}
-
 	// attach runs in the task's worktree, or in its home once the worktree is
 	// gone, like the pipeline read.
 	async attach(a: Agent, worktree: string, runId: string): Promise<void> {
@@ -221,8 +184,8 @@ async function readOptional(file: string): Promise<string | undefined> {
 }
 
 // readTail returns at most limit trailing bytes of a file, starting at a
-// whole line, and the file's modification time.
-export async function readTail(file: string, limit: number): Promise<{text: string; modified: number}> {
+// whole line.
+export async function readTail(file: string, limit: number): Promise<string> {
 	const fh = await open(file, 'r');
 	try {
 		const info = await fh.stat();
@@ -234,7 +197,7 @@ export async function readTail(file: string, limit: number): Promise<{text: stri
 			const nl = text.indexOf('\n');
 			text = nl >= 0 ? text.slice(nl + 1) : '';
 		}
-		return {text, modified: info.mtimeMs};
+		return text;
 	} finally {
 		await fh.close();
 	}
