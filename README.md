@@ -36,7 +36,7 @@ The `gh` CLI is not a fleetwatch requirement.
 fleetwatch never calls it, and the board works with `gh` missing.
 firstmate and no-mistakes use an authenticated `gh` (`gh auth login`) to open and watch pull requests, so you need it to ship work, not to watch it.
 
-fleetwatch was tested with no-mistakes v1.84.0 and herdr 0.9.3.
+fleetwatch was tested with firstmate at commit `3c8396a` (October 2026), no-mistakes v1.84.0, and herdr 0.9.3.
 It reads `bin/fm-bearings-snapshot.sh`, `bin/fm-crew-state.sh`, and `state/<task>.meta` and `.status` in the firstmate home, and runs `no-mistakes axi status` for each run.
 
 ## Install
