@@ -8,18 +8,18 @@ Enter jumps to that agent's pane in herdr.
 
 ## Install
 
-fleetwatch needs Node.js 22 or newer.
-
 ```sh
 npm i -g fleetwatch
 ```
 
-From a clone:
+fleetwatch is a Go program.
+The npm package is a small Node.js launcher that runs the prebuilt binary for your platform, installed beside it as an optional dependency.
+Prebuilt binaries cover macOS and Linux on arm64 and x64.
+
+From a clone, with Go 1.24 or newer:
 
 ```sh
-npm install
-npm run build
-npm i -g .
+go install .
 ```
 
 Either puts a `fleetwatch` command on your `PATH`.
@@ -43,30 +43,14 @@ FM_HOME=~/firstmate fleetwatch   # the same, from the environment
 ```
 
 fleetwatch has no default home: `--home` wins over `$FM_HOME`, and with neither it exits with an error.
-
-| Flag | Default | Meaning |
-| --- | --- | --- |
-| `--home` | `$FM_HOME` | The firstmate home to watch |
-| `--interval` | `5` | Seconds between reads of each live agent's local state |
-| `--fleet-interval` | `15` | Seconds between bearings snapshot reads |
-| `--pr-interval` | `90` | Seconds between GitHub reads of open PRs and their checks |
-| `--concurrency` | `4` | Local commands run at once |
-
-Done, unknown, and absent agents are re-read six times less often than live ones.
-Merged and closed PRs are read once and then only on `r`.
+`--home` is its only flag.
 
 ## Keys
 
 | Key | Action |
 | --- | --- |
-| `↑` `↓` or `k` `j` | Select an agent |
-| `g` `G` or Home End | First or last agent |
+| `↑` `↓` | Select an agent |
 | Enter | Focus the selected agent's pane in herdr |
-| `/` | Filter by id, project, state, or text; Enter keeps it, Esc clears it |
-| Esc | Clear the filter |
-| `d` | Hide or show inactive (done, unknown, absent) agents |
-| PgUp PgDn | Scroll the detail pane |
-| `r` | Refresh everything now, including merged PRs |
 | `q` or Ctrl+C | Quit |
 
 ## What it shows
@@ -95,12 +79,16 @@ Every command runs in the background under a timeout, so a slow command never bl
 
 | Source | Command or file | Cadence |
 | --- | --- | --- |
-| Fleet snapshot | `bin/fm-bearings-snapshot.sh --json --all-in-flight` | `--fleet-interval` |
-| Current task state | `bin/fm-crew-state.sh <task>` | `--interval` |
-| Meta, status log, busy state | `state/<task>.meta`, `.status`, `.busy-state` | `--interval` |
-| Pipeline | `no-mistakes axi status --run <id>`, else `no-mistakes axi status` in the worktree | `--interval` |
-| PR and checks | `gh pr view <url> --json ...` | `--pr-interval` |
+| Fleet snapshot | `bin/fm-bearings-snapshot.sh --json --all-in-flight` | Every 15s |
+| Current task state | `bin/fm-crew-state.sh <task>` | Every 5s |
+| Meta, status log, busy state | `state/<task>.meta`, `.status`, `.busy-state` | Every 5s |
+| Pipeline | `no-mistakes axi status --run <id>`, else `no-mistakes axi status` in the worktree | Every 5s |
+| PR and checks | `gh pr view <url> --json ...` | Every 90s |
 | Focus | `herdr agent focus <pane> --session <session>` | On Enter |
+
+Done, unknown, and absent agents are re-read every 30s instead of every 5s.
+Merged and closed PRs are read once.
+At most four local commands and two GitHub reads run at once.
 
 The snapshot's parent-side cache of remote secondmate summaries goes to the user cache directory (`~/Library/Caches/fleetwatch` on macOS, `$XDG_CACHE_HOME/fleetwatch` or `~/.cache/fleetwatch` elsewhere) instead of the home's `state/`.
 The pipeline read uses the run id crew-state names; without one, the worktree's latest run counts only when it is on the task's own branch.
@@ -111,17 +99,29 @@ A local secondmate's children are read from that secondmate's own home.
 ## Development
 
 ```sh
-npm install
-npm run typecheck # type-check the sources and tests
-npm test          # type-check, then run the tests with the Node test runner
-npm run build     # compile src/ to dist/, the files the package publishes
-node dist/cli.js  # run the local build
+go vet ./...
+go test ./...
+go run . --home ~/firstmate  # run from source
 ```
 
-Tests cover every parser, the model's update logic, and the app's wiring of keys and background reads.
-They use synthetic fixtures under `test/fixtures`, written in the exact shapes of the real command output and state files, and need no live firstmate home, herdr, GitHub, or no-mistakes daemon.
+Tests cover every parser, the collector, the model's update logic, and the program's wiring of keys and background reads.
+They use synthetic fixtures under `testdata`, written in the exact shapes of the real command output and state files, and need no live firstmate home, herdr, GitHub, or no-mistakes daemon.
 
-CI runs the type-check, the tests, and the build on Node 22 and 24.
+CI checks formatting, vets, runs the tests with the race detector, and builds the npm platform packages.
+
+## Releasing to npm
+
+The `fleetwatch` package depends on one package per platform, each holding that platform's binary.
+They are published together at the same version.
+
+1. Set the new version in `package.json`, both as `version` and for every entry in `optionalDependencies`.
+2. Run `sh scripts/npm-build.sh`. It cross-compiles the binary into `dist/npm/fleetwatch-<os>-<cpu>/` and writes each platform package.
+3. Publish each platform package first, then the launcher:
+
+```sh
+for dir in dist/npm/*/; do npm publish "$dir"; done
+npm publish
+```
 
 ## License
 
