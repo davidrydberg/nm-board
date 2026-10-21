@@ -1,5 +1,5 @@
 {
-  "name": "fleetwatch",
+  "name": "nm-watch",
   "version": "0.1.0",
   "description": "Live terminal board of firstmate's no-mistakes runs",
   "keywords": [
@@ -14,7 +14,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "fleetwatch": "dist/cli.js"
+    "nm-watch": "dist/cli.js"
   },
   "files": [
     "dist",
@@ -31,11 +31,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/davidrydberg/fleetwatch.git"
+    "url": "git+https://github.com/davidrydberg/nm-watch.git"
   },
-  "homepage": "https://github.com/davidrydberg/fleetwatch#readme",
+  "homepage": "https://github.com/davidrydberg/nm-watch#readme",
   "bugs": {
-    "url": "https://github.com/davidrydberg/fleetwatch/issues"
+    "url": "https://github.com/davidrydberg/nm-watch/issues"
   },
   "dependencies": {
     "@lydell/node-pty": "^1.2.0-beta.15",

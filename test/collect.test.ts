@@ -10,7 +10,7 @@ import {execHandover, execRunner, type Cmd, type Handover, type Runner} from '..
 import type {Agent} from '../src/fleet/agent.js';
 import {fixture, hasPython, ptyDriver} from './helpers.js';
 
-const tmp = () => mkdtempSync(path.join(os.tmpdir(), 'fleetwatch-test-'));
+const tmp = () => mkdtempSync(path.join(os.tmpdir(), 'nm-watch-test-'));
 
 // fakeRunner answers commands from canned output keyed by command basename.
 function fakeRunner(out: Record<string, string>, errors: Record<string, string> = {}): Runner & {cmds: Cmd[]} {
@@ -51,16 +51,16 @@ const agent = (id: string, h: string): Agent => ({
 });
 
 test('the bearings command uncaps decisions and redirects the snapshot cache', () => {
-	const c = bearingsCmd({home: '/fm', cacheDir: '/cache/fleetwatch/summary'});
+	const c = bearingsCmd({home: '/fm', cacheDir: '/cache/nm-watch/summary'});
 	assert.equal(c.name, '/fm/bin/fm-bearings-snapshot.sh');
 	assert.equal(c.cwd, '/fm');
 	assert.deepEqual(c.args, ['--json', '--all-in-flight']);
-	assert.deepEqual(c.env, {FM_HOME: '/fm', FM_BEARINGS_DECISIONS: '1000', FM_SNAPSHOT_CACHE_DIR: '/cache/fleetwatch/summary'});
+	assert.deepEqual(c.env, {FM_HOME: '/fm', FM_BEARINGS_DECISIONS: '1000', FM_SNAPSHOT_CACHE_DIR: '/cache/nm-watch/summary'});
 });
 
 test('fleet reads secondmate meta and prepares the cache parent', async () => {
 	const h = home('spare', {'.meta': fixture('remote-secondmate.meta')});
-	const cacheDir = path.join(tmp(), 'fleetwatch', 'summary');
+	const cacheDir = path.join(tmp(), 'nm-watch', 'summary');
 	const src = new FleetSource(config(h, cacheDir), fakeRunner({'fm-bearings-snapshot.sh': fixture('bearings.json')}));
 	const f = await src.fleet();
 	const sm = f.agents.at(-1)!;
@@ -154,9 +154,9 @@ test("attach opens the run in no-mistakes' own view, in the task's worktree", as
 test('execHandover explains a failed or missing command', async () => {
 	assert.deepEqual(await execHandover({name: 'sh', args: ['-c', 'exit 0']}), {stdout: ''});
 	assert.deepEqual(await execHandover({name: 'sh', args: ['-c', "echo 'Error: unknown run' >&2; exit 1"]}), {stdout: '', error: 'sh: Error: unknown run'});
-	assert.deepEqual(await execHandover({name: 'fleetwatch-no-such-command', args: []}), {
+	assert.deepEqual(await execHandover({name: 'nm-watch-no-such-command', args: []}), {
 		stdout: '',
-		error: 'fleetwatch-no-such-command is not installed or not on PATH',
+		error: 'nm-watch-no-such-command is not installed or not on PATH',
 	});
 	assert.equal(process.listenerCount('SIGINT'), 0, 'SIGINT is handed back');
 });
@@ -217,6 +217,6 @@ test('execRunner kills the whole process group on timeout', async () => {
 test('execRunner reports stderr and keeps stdout on failure', async () => {
 	const r = await execRunner({name: 'sh', args: ['-c', "echo partial; echo 'boom happened' >&2; exit 3"]}, 5000);
 	assert.deepEqual(r, {stdout: 'partial\n', error: 'sh: boom happened'});
-	const missing = await execRunner({name: 'fleetwatch-no-such-command', args: []}, 5000);
-	assert.equal(missing.error, 'fleetwatch-no-such-command is not installed or not on PATH');
+	const missing = await execRunner({name: 'nm-watch-no-such-command', args: []}, 5000);
+	assert.equal(missing.error, 'nm-watch-no-such-command is not installed or not on PATH');
 });

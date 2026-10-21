@@ -1,6 +1,6 @@
 import {spawn} from 'node:child_process';
 
-// Cmd is one external command fleetwatch runs. env is added to the inherited
+// Cmd is one external command nm-watch runs. env is added to the inherited
 // environment.
 export interface Cmd {
 	name: string;
@@ -87,7 +87,7 @@ interface StreamHandle {
 	readStop(): number;
 }
 
-// holdStdin stops fleetwatch reading its terminal until the returned release
+// holdStdin stops nm-watch reading its terminal until the returned release
 // runs. Pausing the stream or removing its listeners is not enough: Node reads
 // ahead into the stream's buffer and would take keys typed for the command. So
 // the current read stops, and a read Node starts meanwhile waits for release.
@@ -106,9 +106,9 @@ function holdStdin(): () => void {
 	};
 }
 
-// execHandover runs a command on fleetwatch's own terminal: it reads stdin and
+// execHandover runs a command on nm-watch's own terminal: it reads stdin and
 // draws on stdout, and its stderr is kept to explain a failure. While it runs,
-// fleetwatch neither reads stdin nor handles SIGINT, so every key and Ctrl+C
+// nm-watch neither reads stdin nor handles SIGINT, so every key and Ctrl+C
 // goes to the command.
 export const execHandover: Handover = (cmd) =>
 	new Promise((resolve) => {

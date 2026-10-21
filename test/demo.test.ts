@@ -75,13 +75,13 @@ test('a demo run opens the synthetic view, never no-mistakes', async () => {
 	assert.equal(await offline.popup(a, '', 'RUN'), false);
 	await offline.attach(a, '', 'RUN');
 	assert.deepEqual(cmds, [
-		{name: process.execPath, args: [VIEW_SCRIPT], env: {FLEETWATCH_RUN: 'RUN', FLEETWATCH_CWD: '', FLEETWATCH_NODE: process.execPath, FLEETWATCH_DEMO: '1'}},
+		{name: process.execPath, args: [VIEW_SCRIPT], env: {NM_WATCH_RUN: 'RUN', NM_WATCH_CWD: '', NM_WATCH_NODE: process.execPath, NM_WATCH_DEMO: '1'}},
 	]);
 
 	const herdr = await fakeHerdr({result: {type: 'ok'}});
 	try {
 		assert.equal(await new DemoSource(herdr.socket, handover).popup(a, '', 'RUN'), true);
-		assert.equal((herdr.requests[0]!['params'] as {env: Record<string, string>}).env['FLEETWATCH_DEMO'], '1');
+		assert.equal((herdr.requests[0]!['params'] as {env: Record<string, string>}).env['NM_WATCH_DEMO'], '1');
 	} finally {
 		await herdr.close();
 	}

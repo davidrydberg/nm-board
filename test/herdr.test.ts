@@ -9,7 +9,7 @@ import {herdrSocket, openPopup, PLUGIN_ID, VIEW_ENTRYPOINT} from '../src/collect
 import type {Agent} from '../src/fleet/agent.js';
 import {fakeHerdr} from './helpers.js';
 
-const tmp = () => mkdtempSync(path.join(os.tmpdir(), 'fleetwatch-test-'));
+const tmp = () => mkdtempSync(path.join(os.tmpdir(), 'nm-watch-test-'));
 
 const agent = (home: string): Agent => ({
 	id: 'pack-option-api',
@@ -46,17 +46,17 @@ test('openPopup asks herdr for the plugin view in a popup and passes the run in 
 		assert.equal(params['plugin_id'], PLUGIN_ID);
 		assert.equal(params['entrypoint'], VIEW_ENTRYPOINT);
 		assert.equal(params['placement'], 'popup');
-		assert.deepEqual(params['env'], {FLEETWATCH_RUN: RUN, FLEETWATCH_CWD: '/wt', FLEETWATCH_NODE: process.execPath});
+		assert.deepEqual(params['env'], {NM_WATCH_RUN: RUN, NM_WATCH_CWD: '/wt', NM_WATCH_NODE: process.execPath});
 	} finally {
 		await herdr.close();
 	}
 });
 
 test("openPopup reports herdr's refusal, a hang-up, and a missing server", async () => {
-	const refusing = await fakeHerdr({error: {code: 'plugin_not_found', message: 'plugin fleetwatch is not installed'}});
+	const refusing = await fakeHerdr({error: {code: 'plugin_not_found', message: 'plugin nm-watch is not installed'}});
 	const hanging = await fakeHerdr(null);
 	try {
-		await assert.rejects(openPopup(refusing.socket, {runId: RUN, cwd: ''}), /^Error: herdr: plugin fleetwatch is not installed$/);
+		await assert.rejects(openPopup(refusing.socket, {runId: RUN, cwd: ''}), /^Error: herdr: plugin nm-watch is not installed$/);
 		await assert.rejects(openPopup(hanging.socket, {runId: RUN, cwd: ''}), /without answering/);
 		await assert.rejects(openPopup(path.join(tmp(), 'none.sock'), {runId: RUN, cwd: ''}), /^Error: herdr: .*ENOENT/);
 	} finally {
@@ -77,14 +77,14 @@ test("FleetSource opens a popup only with herdr's socket, in the task's worktree
 		const src = new FleetSource({...config, herdrSocket: herdr.socket}, noRunner);
 		assert.equal(await src.popup(agent(home), worktree, RUN), true);
 		assert.equal(await src.popup(agent(home), path.join(worktree, 'gone'), RUN), true);
-		const cwds = herdr.requests.map((r) => ((r['params'] as {env: Record<string, string>}).env['FLEETWATCH_CWD']));
+		const cwds = herdr.requests.map((r) => ((r['params'] as {env: Record<string, string>}).env['NM_WATCH_CWD']));
 		assert.deepEqual(cwds, [worktree, home]);
 	} finally {
 		await herdr.close();
 	}
 });
 
-test('the shipped plugin declares the popup view that fleetwatch opens', () => {
+test('the shipped plugin declares the popup view that nm-watch opens', () => {
 	const dir = new URL('../../herdr-plugin/', import.meta.url);
 	const manifest = readFileSync(new URL('herdr-plugin.toml', dir), 'utf8');
 	assert.match(manifest, new RegExp(`^id = "${PLUGIN_ID}"$`, 'm'));
@@ -92,5 +92,5 @@ test('the shipped plugin declares the popup view that fleetwatch opens', () => {
 	assert.match(manifest, /^placement = "popup"$/m);
 	assert.match(manifest, /^command = \["sh", "view.sh"\]$/m);
 	assert.doesNotMatch(manifest, /^\[\[(actions|startup|events|link_handlers|build)\]\]$/m, 'the plugin runs nothing on its own');
-	assert.match(readFileSync(new URL('view.sh', dir), 'utf8'), /^exec "\$\{FLEETWATCH_NODE:-node\}" \.\.\/dist\/view\.js$/m);
+	assert.match(readFileSync(new URL('view.sh', dir), 'utf8'), /^exec "\$\{NM_WATCH_NODE:-node\}" \.\.\/dist\/view\.js$/m);
 });

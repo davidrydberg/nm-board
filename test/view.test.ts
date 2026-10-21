@@ -30,7 +30,7 @@ done
 `;
 
 test('attachWithEsc runs no-mistakes attach on its own pty and detaches it on Esc', {skip: !hasPython && 'needs python3 for a pty'}, () => {
-	const dir = mkdtempSync(path.join(os.tmpdir(), 'fleetwatch-test-'));
+	const dir = mkdtempSync(path.join(os.tmpdir(), 'nm-watch-test-'));
 	const bin = path.join(dir, 'bin');
 	mkdirSync(bin);
 	writeFileSync(path.join(bin, 'no-mistakes'), fakeNoMistakes);

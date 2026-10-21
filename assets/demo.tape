@@ -3,7 +3,7 @@
 #
 # vhs records a plain terminal, not herdr, so Enter shows the run full screen.
 # Inside herdr the same view opens in a popup over the board.
-# The fleet is fleetwatch's built-in synthetic one, so nothing here is real.
+# The fleet is nm-watch's built-in synthetic one, so nothing here is real.
 
 Output assets/demo.gif
 Require node
@@ -18,12 +18,12 @@ Set TypingSpeed 75ms
 # Leaving herdr's variables set would open the popup in the recording
 # machine's own herdr session.
 Hide
-Type "unset HERDR_ENV HERDR_SOCKET_PATH; PS1='$ '; alias fleetwatch='node dist/cli.js'; clear"
+Type "unset HERDR_ENV HERDR_SOCKET_PATH; PS1='$ '; alias nm-watch='node dist/cli.js'; clear"
 Enter
 Show
 
 Sleep 500ms
-Type "fleetwatch --demo"
+Type "nm-watch --demo"
 Sleep 600ms
 Enter
 Sleep 3s

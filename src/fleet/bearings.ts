@@ -1,4 +1,4 @@
-// BEARINGS_SCHEMA is the output contract fleetwatch reads from
+// BEARINGS_SCHEMA is the output contract nm-watch reads from
 // `bin/fm-bearings-snapshot.sh --json`.
 export const BEARINGS_SCHEMA = 'fm-bearings.v1';
 
@@ -35,7 +35,7 @@ export interface Decision {
 	owner: string;
 }
 
-// Bearings is the part of the bearings snapshot fleetwatch shows.
+// Bearings is the part of the bearings snapshot nm-watch shows.
 export interface Bearings {
 	schema: string;
 	home: string;

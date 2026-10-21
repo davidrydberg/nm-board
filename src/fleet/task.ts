@@ -33,7 +33,7 @@ export function parseCrewState(out: string): CrewState {
 	};
 }
 
-// Meta is the subset of state/<task>.meta fleetwatch reads.
+// Meta is the subset of state/<task>.meta nm-watch reads.
 export interface Meta {
 	worktree: string;
 	project: string;

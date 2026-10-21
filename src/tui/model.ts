@@ -1,4 +1,4 @@
-// The fleetwatch view state and its update logic. The model never runs a
+// The nm-watch view state and its update logic. The model never runs a
 // command: dispatch returns effects, the app runs them through a Source, and
 // their results come back as events. That keeps every read in the background
 // and the update logic testable without a terminal.
@@ -26,7 +26,7 @@ export type Effect =
 	| {kind: 'attach'; agent: Agent; worktree: string; runId: string}
 	| {kind: 'quit'};
 
-// Key mirrors the parts of Ink's Key fleetwatch reacts to.
+// Key mirrors the parts of Ink's Key nm-watch reacts to.
 export interface Key {
 	upArrow?: boolean;
 	downArrow?: boolean;

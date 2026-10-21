@@ -1,4 +1,4 @@
-// The built-in synthetic fleet `fleetwatch --demo` shows: made-up projects,
+// The built-in synthetic fleet `nm-watch --demo` shows: made-up projects,
 // tasks, runs, steps, and findings, so the board runs with no firstmate home
 // and never reads or starts a no-mistakes daemon.
 
