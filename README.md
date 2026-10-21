@@ -46,8 +46,10 @@ It reads `bin/fm-bearings-snapshot.sh`, `bin/fm-crew-state.sh`, and `state/<task
 
 ## Install
 
+The npm package is named nm-board because nm-watch was too close to an existing package name, but the command you run is `nm-watch`.
+
 ```sh
-npm i -g nm-watch
+npm i -g nm-board
 nm-watch --help
 ```
 
@@ -158,7 +160,7 @@ Each message below is what nm-watch prints, and what to do about it.
 
 ```sh
 herdr plugin unlink nm-watch   # only if you ran nm-watch herdr-setup; herdr must be running
-npm uninstall -g nm-watch
+npm rm -g nm-board
 ```
 
 nm-watch keeps one small cache folder, which you can delete:
