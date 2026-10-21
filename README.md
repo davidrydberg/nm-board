@@ -1,57 +1,122 @@
 # fleetwatch
 
-Live terminal board of firstmate's no-mistakes runs.
+A live kanban board of your [firstmate](https://github.com/kunchenguid/firstmate) fleet's [no-mistakes](https://github.com/kunchenguid/no-mistakes) runs, in your terminal.
 
 ![fleetwatch --demo: the board, Enter on a run, Esc back to the board](assets/demo.gif)
 
-fleetwatch is meant to run in its own Ghostty window or herdr pane next to the fleet.
-It opens on a kanban board: one column per no-mistakes pipeline step, one card per task with a run.
-Enter opens the selected run in no-mistakes' own view, where you follow it and make its decisions.
-Inside herdr that view opens in a popup over the board, and Esc closes it while the run keeps going.
+**Use herdr?**
+Run `fleetwatch herdr-setup` one time, and inside herdr every run opens in a popup over the board.
+Without it, runs open full screen.
+See [The herdr popup](#the-herdr-popup) for what it does and how to undo it.
 
-The recording above is `fleetwatch --demo`, made from [assets/demo.tape](assets/demo.tape) with [vhs](https://github.com/charmbracelet/vhs).
-vhs records a plain terminal rather than herdr, so there the run opens full screen instead of in a popup.
+## What is this
+
+firstmate runs a crew of coding agents.
+Each task ships through a no-mistakes pipeline: intent, rebase, review, test, document, lint, push, pr, ci.
+fleetwatch shows all of those runs at once, one column per pipeline step and one card per task.
+Cards that wait on you (an approval, a fix review, a failure) lead their column in a different colour.
+
+Press Enter on a card to open that run in no-mistakes' own view, where you follow it and make its decisions.
+Inside [herdr](https://herdr.dev) the view opens in a popup over the board, and Esc closes the popup while the run keeps going.
+
+fleetwatch only reads.
+It never changes firstmate state, steers an agent, merges, or tears anything down.
+
+No firstmate fleet yet?
+`fleetwatch --demo` shows the board with made-up data, so you can try everything below without installing anything else.
+
+## Requirements
+
+| Requirement | Needed for | Check | Get it |
+| --- | --- | --- | --- |
+| macOS or Linux | Everything | | |
+| Node.js 22 or newer | Running fleetwatch | `node -v` | [nodejs.org](https://nodejs.org) |
+| An interactive terminal | The board is a full-screen TUI; it does not run with piped input or output | | |
+| A firstmate home | Watching a real fleet (not needed for `--demo`) | `ls ~/firstmate/bin/fm-bearings-snapshot.sh` | `git clone https://github.com/kunchenguid/firstmate ~/firstmate`, then start your agent there as its README describes |
+| `jq` | firstmate's snapshot script, which fleetwatch calls (not needed for `--demo`) | `jq --version` | `brew install jq`, or your package manager |
+| `no-mistakes` | The pipeline columns and Enter on a run (not needed for `--demo`) | `no-mistakes --version` | `curl -fsSL https://raw.githubusercontent.com/kunchenguid/no-mistakes/main/docs/install.sh \| sh` |
+| herdr 0.7.4 or newer, optional | The popup for Enter and Esc, after `fleetwatch herdr-setup` once | `herdr --version` | [herdr.dev](https://herdr.dev) |
+
+The `gh` CLI is not a fleetwatch requirement.
+fleetwatch never calls it, and the board works with `gh` missing.
+firstmate and no-mistakes use an authenticated `gh` (`gh auth login`) to open and watch pull requests, so you need it to ship work, not to watch it.
+
+fleetwatch was tested with firstmate at commit `3c8396a` (October 2026), no-mistakes v1.84.0, and herdr 0.9.3.
+It reads `bin/fm-bearings-snapshot.sh`, `bin/fm-crew-state.sh`, and `state/<task>.meta` and `.status` in the firstmate home, and runs `no-mistakes axi status` for each run.
 
 ## Install
 
-fleetwatch needs Node.js 22 or newer.
-
 ```sh
 npm i -g fleetwatch
+fleetwatch --help
 ```
 
-From a clone:
+If `fleetwatch --help` says `command not found`, npm's global bin directory is not on your `PATH`.
+Find it with `npm prefix -g` and add its `bin` folder to `PATH`.
+If the install fails with `EACCES`, point npm at a folder you own, as the [npm docs](https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally) describe.
+
+To install from a clone instead:
 
 ```sh
+git clone https://github.com/davidrydberg/fleetwatch
+cd fleetwatch
 npm install
 npm run build
 npm i -g .
 ```
 
-Either puts a `fleetwatch` command on your `PATH`.
+## Quick start
 
-At run time fleetwatch shells out to tools the fleet already uses:
+Run fleetwatch in its own terminal window or herdr pane, next to the fleet.
+Inside herdr, run `fleetwatch herdr-setup` one time so runs open in a popup (step 3).
 
-| Tool | Used for |
-| --- | --- |
-| A firstmate home (`bin/`, `state/`) | The fleet snapshot, per-task state, meta, and status logs |
-| `no-mistakes` | Pipeline steps, the active step, gates, and findings; its own view of a run on Enter |
-| herdr, optional | A popup over the board for that view, once `fleetwatch herdr-setup` has linked fleetwatch's plugin |
+1. Try the demo.
+   It needs nothing but Node.
 
-Without `no-mistakes`, cards land in the **no run** column as unreadable, and Enter reports the missing tool.
+   ```sh
+   fleetwatch --demo
+   ```
 
-## Usage
+   Move with the arrow keys and press Enter on a card to open a stand-in run view.
+   Esc or `q` returns to the board, and `q` on the board quits.
 
-```sh
-fleetwatch --home ~/firstmate    # watch the firstmate home at ~/firstmate
-FM_HOME=~/firstmate fleetwatch   # the same, from the environment
-fleetwatch --demo                # watch a built-in synthetic fleet
-fleetwatch herdr-setup           # let Enter open runs in a herdr popup
-```
+2. Watch your real fleet.
+   Point fleetwatch at your firstmate home, the folder you cloned firstmate into:
 
-fleetwatch has no default home: `--home` wins over `$FM_HOME`, and with neither it exits with an error.
-`--demo` needs neither: it shows a built-in fleet of made-up projects, tasks, and runs.
-Enter on a demo card opens a synthetic stand-in for no-mistakes' view, so the demo never reads or starts a no-mistakes daemon.
+   ```sh
+   fleetwatch --home ~/firstmate
+   ```
+
+   To stop typing the path, set `FM_HOME` once, for example in `~/.zshrc` or `~/.bashrc`:
+
+   ```sh
+   export FM_HOME=~/firstmate
+   fleetwatch
+   ```
+
+   `--home` wins over `FM_HOME`.
+   The first read of a large fleet can take 10 to 20 seconds, and the header says `reading fleet...` until it lands.
+   After that the board refreshes by itself.
+
+3. Open runs in a herdr popup.
+   This is optional, and only for people who run fleetwatch inside herdr.
+   Link fleetwatch's herdr plugin one time:
+
+   ```sh
+   fleetwatch herdr-setup
+   ```
+
+   That runs `herdr plugin link` on the plugin folder inside the installed package.
+   It changes no herdr config, keybindings, or hooks; herdr only records the link in its plugin registry.
+
+   To check it worked, press Enter on a card inside herdr.
+   A popup opens over the board, and Esc closes it while the run keeps going.
+
+   If it is not set up, the run opens full screen instead.
+   `q` brings you back to the board, and the footer then says `no herdr popup (herdr: plugin not found); fleetwatch herdr-setup links it`.
+   Outside herdr, Enter always opens the run full screen.
+
+   To undo it, run `herdr plugin unlink fleetwatch`.
 
 ## Keys
 
@@ -61,10 +126,47 @@ Enter on a demo card opens a synthetic stand-in for no-mistakes' view, so the de
 | `↑` `↓` or `k` `j` | Select a card in the column |
 | Enter | Open the selected run in no-mistakes: in a herdr popup inside herdr, else full screen |
 | Esc, in a run's popup | Close the popup and return to the board; the run keeps going |
+| `q`, in a full-screen run | Leave no-mistakes' view and return to the board |
 | `/` | Filter by id, project, state, status as the card shows it, or text; Enter keeps it, Esc clears it |
 | Esc | Clear the filter |
 | `r` | Refresh everything now |
 | `q` or Ctrl+C | Quit |
+
+## Troubleshooting
+
+Each message below is what fleetwatch prints, and what to do about it.
+
+| What you see | Why | Fix |
+| --- | --- | --- |
+| `fleetwatch: no firstmate home: pass --home <dir> or set FM_HOME` | Neither `--home` nor `FM_HOME` is set. | `fleetwatch --home ~/firstmate`, or `export FM_HOME=~/firstmate`. To just look around, use `fleetwatch --demo`. |
+| `fleetwatch: <dir> does not look like a firstmate home (no bin/fm-bearings-snapshot.sh)` | The folder is missing, or is not a firstmate checkout. | Point `--home` at the folder that holds firstmate's `bin/` and `state/`. `ls <dir>/bin/fm-bearings-snapshot.sh` must work. |
+| Header says `fleet error: ... jq not found`, and the board stays empty | firstmate's snapshot script needs `jq`. | Install it (`brew install jq`). Press `r`. |
+| Header says `fleet error:` with another message | firstmate's snapshot script failed. | Run `<home>/bin/fm-bearings-snapshot.sh --json --all-in-flight` yourself to see the full error. The board keeps the last good data and retries. |
+| Every card sits in **no run** as `unreadable`, and the bottom line says `no-mistakes is not installed or not on PATH` | `no-mistakes` is not installed, or not on the `PATH` of the terminal that runs fleetwatch. | Install no-mistakes and check `no-mistakes --version` in the same terminal. Press `r`. |
+| Cards stay in **no run** with `no run` | The task's worktree has no no-mistakes run yet. | Nothing to fix. The card moves as soon as the run starts. |
+| Header shows `reading fleet...` for a long time | A large fleet can take 10 to 20 seconds on the first read. Each read is cut off after 60 seconds. | Wait, or press `r`. |
+| Enter inside herdr opens the run full screen, and after `q` the footer says `no herdr popup (herdr: plugin not found); fleetwatch herdr-setup links it` | You are inside herdr and fleetwatch's plugin is not linked. | Run `fleetwatch herdr-setup` once, then press Enter on the card again. |
+| `fleetwatch: herdr is not installed or not on PATH` from `herdr-setup` | herdr is not installed. | Install herdr, or skip the popup: Enter still works full screen. |
+| `herdr plugin link failed` | An older fleetwatch plugin is already linked from another path. | `herdr plugin unlink fleetwatch`, then `fleetwatch herdr-setup` again. |
+| The popup stops working after you reinstall fleetwatch or switch Node versions | herdr still points at the old install folder. | `herdr plugin unlink fleetwatch`, then `fleetwatch herdr-setup`. |
+| The popup shows only `no-mistakes exited with status N; if it printed nothing above, it may not be on the PATH herdr runs plugins with` | `no-mistakes` is not on the `PATH` herdr starts plugins with, for example when herdr was launched from a desktop launcher. | Start herdr from a terminal where `no-mistakes --version` works. |
+| `herdr plugin unlink fleetwatch` says `server_not_running` | `unlink` needs a running herdr, while `link` does not. | Start herdr, then run `unlink` again. |
+| `ERROR Raw mode is not supported on the current process.stdin` | fleetwatch is not attached to an interactive terminal, for example when piped or run from a script. | Run it directly in a terminal. |
+| `npm warn EBADENGINE ... required: { node: '>=22' }` | Your Node.js is older than 22. | Upgrade Node.js. |
+
+## Uninstall
+
+```sh
+herdr plugin unlink fleetwatch   # only if you ran fleetwatch herdr-setup; herdr must be running
+npm uninstall -g fleetwatch
+```
+
+fleetwatch keeps one small cache folder, which you can delete:
+
+```sh
+rm -rf ~/Library/Caches/fleetwatch                  # macOS
+rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/fleetwatch" # Linux
+```
 
 ## The board
 
@@ -120,8 +222,9 @@ Link it once:
 fleetwatch herdr-setup
 ```
 
-That runs `herdr plugin link` on the plugin directory inside the installed package.
-It changes no herdr configuration; herdr records the link in its plugin registry, for every herdr session of your user.
+That runs `herdr plugin link` on the plugin folder inside the installed package.
+It changes no herdr config, keybindings, or hooks; herdr only records the link in its plugin registry, for every herdr session of your user.
+To check it worked, press Enter on a card inside herdr: a popup opens over the board, Esc closes it, and the run keeps going.
 Undo it with `herdr plugin unlink fleetwatch`.
 If fleetwatch moves, such as after a reinstall under another Node version, unlink and run `fleetwatch herdr-setup` again.
 The popup needs herdr 0.7.4 or newer.

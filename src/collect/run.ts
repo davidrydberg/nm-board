@@ -21,6 +21,11 @@ export type Runner = (cmd: Cmd, timeoutMs: number) => Promise<RunResult>;
 
 const commandName = (cmd: Cmd) => cmd.name.split('/').at(-1) ?? cmd.name;
 
+// spawnFailure explains a command that could not start, naming a missing
+// program rather than the raw spawn error.
+const spawnFailure = (name: string, error: NodeJS.ErrnoException) =>
+	error.code === 'ENOENT' ? `${name} is not installed or not on PATH` : `${name}: ${error.message}`;
+
 // execRunner runs commands as child processes in their own process group. On
 // timeout it kills the whole group, so a script's own children cannot outlive
 // the bound or hold its output open.
@@ -58,7 +63,7 @@ export const execRunner: Runner = (cmd, timeoutMs) =>
 		}, timeoutMs);
 		child.stdout.setEncoding('utf8').on('data', (s: string) => (stdout += s));
 		child.stderr.setEncoding('utf8').on('data', (s: string) => (stderr += s));
-		child.on('error', (error) => finish({stdout, error: `${name}: ${error.message}`}));
+		child.on('error', (error) => finish({stdout, error: spawnFailure(name, error)}));
 		child.on('close', (code, signal) => {
 			if (timedOut) return;
 			finish(code === 0 ? {stdout} : {stdout, error: failure(name, stderr, code, signal)});
@@ -124,8 +129,6 @@ export const execHandover: Handover = (cmd) =>
 		child.stderr.setEncoding('utf8').on('data', (s: string) => {
 			if (stderr.length < 8192) stderr += s;
 		});
-		child.on('error', (error: NodeJS.ErrnoException) =>
-			finish(error.code === 'ENOENT' ? `${name} is not installed or not on PATH` : `${name}: ${error.message}`),
-		);
+		child.on('error', (error: NodeJS.ErrnoException) => finish(spawnFailure(name, error)));
 		child.on('close', (code, signal) => finish(code === 0 ? undefined : failure(name, stderr, code, signal)));
 	});
