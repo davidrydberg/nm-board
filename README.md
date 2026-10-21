@@ -112,8 +112,8 @@ Inside herdr, run `fleetwatch herdr-setup` one time so runs open in a popup (ste
    To check it worked, press Enter on a card inside herdr.
    A popup opens over the board, and Esc closes it while the run keeps going.
 
-   If it is not set up, the footer says `no herdr popup (herdr: plugin not found); fleetwatch herdr-setup links it`, and the run opens full screen instead.
-   `q` brings you back to the board.
+   If it is not set up, the run opens full screen instead.
+   `q` brings you back to the board, and the footer then says `no herdr popup (herdr: plugin not found); fleetwatch herdr-setup links it`.
    Outside herdr, Enter always opens the run full screen.
 
    To undo it, run `herdr plugin unlink fleetwatch`.
@@ -145,7 +145,7 @@ Each message below is what fleetwatch prints, and what to do about it.
 | Every card sits in **no run** as `unreadable`, and the bottom line says `no-mistakes is not installed or not on PATH` | `no-mistakes` is not installed, or not on the `PATH` of the terminal that runs fleetwatch. | Install no-mistakes and check `no-mistakes --version` in the same terminal. Press `r`. |
 | Cards stay in **no run** with `no run` | The task's worktree has no no-mistakes run yet. | Nothing to fix. The card moves as soon as the run starts. |
 | Header shows `reading fleet...` for a long time | A large fleet can take 10 to 20 seconds on the first read. Each read is cut off after 60 seconds. | Wait, or press `r`. |
-| `no herdr popup (herdr: plugin not found); fleetwatch herdr-setup links it` in the footer, and the run opens full screen (`q` returns) | You are inside herdr and fleetwatch's plugin is not linked. | Run `fleetwatch herdr-setup` once, then press Enter on the card again. |
+| Enter inside herdr opens the run full screen, and after `q` the footer says `no herdr popup (herdr: plugin not found); fleetwatch herdr-setup links it` | You are inside herdr and fleetwatch's plugin is not linked. | Run `fleetwatch herdr-setup` once, then press Enter on the card again. |
 | `fleetwatch: herdr is not installed or not on PATH` from `herdr-setup` | herdr is not installed. | Install herdr, or skip the popup: Enter still works full screen. |
 | `herdr plugin link failed` | An older fleetwatch plugin is already linked from another path. | `herdr plugin unlink fleetwatch`, then `fleetwatch herdr-setup` again. |
 | The popup stops working after you reinstall fleetwatch or switch Node versions | herdr still points at the old install folder. | `herdr plugin unlink fleetwatch`, then `fleetwatch herdr-setup`. |
