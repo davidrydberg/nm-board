@@ -8,7 +8,7 @@ import {test} from 'node:test';
 import {attachCmd, bearingsCmd, FleetSource, readTail, type Config} from '../src/collect/collect.js';
 import {execHandover, execRunner, type Cmd, type Handover, type Runner} from '../src/collect/run.js';
 import type {Agent} from '../src/fleet/agent.js';
-import {fixture} from './helpers.js';
+import {fixture, hasPython, ptyDriver} from './helpers.js';
 
 const tmp = () => mkdtempSync(path.join(os.tmpdir(), 'fleetwatch-test-'));
 
@@ -160,47 +160,6 @@ test('execHandover explains a failed or missing command', async () => {
 	});
 	assert.equal(process.listenerCount('SIGINT'), 0, 'SIGINT is handed back');
 });
-
-// ptyDriver runs a command on a new pty. It answers each "WAIT text" line by
-// waiting for the text in the output and each "TYPE keys" line by typing the
-// keys one at a time, then prints all the output.
-const ptyDriver = `
-import os, pty, select, sys, time
-pid, fd = pty.fork()
-if pid == 0:
-    os.execvp(sys.argv[1], sys.argv[1:])
-out = b''
-def wait(text):
-    global out
-    end = time.time() + 5
-    while text not in out and time.time() < end:
-        if select.select([fd], [], [], 0.05)[0]:
-            try:
-                out += os.read(fd, 4096)
-            except OSError:
-                return
-for line in sys.stdin.read().splitlines():
-    verb, arg = line.split(' ', 1)
-    if verb == 'WAIT':
-        wait(arg.encode())
-    for key in arg.encode() if verb == 'TYPE' else b'':
-        os.write(fd, bytes([key]))
-        time.sleep(0.05)
-try:
-    os.kill(pid, 9)
-except OSError:
-    pass
-sys.stdout.write(out.decode(errors='replace'))
-`;
-
-const hasPython = (() => {
-	try {
-		execFileSync('python3', ['-c', 'import pty']);
-		return true;
-	} catch {
-		return false;
-	}
-})();
 
 test('execHandover gives the command every key typed while it runs', {skip: !hasPython && 'needs python3 for a pty'}, () => {
 	// The app reads its terminal the way Ink does. On e it stops listening and

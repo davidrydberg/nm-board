@@ -1,0 +1,17 @@
+# The herdr plugin fleetwatch opens runs through. `fleetwatch herdr-setup`
+# links it. It declares one popup pane and nothing else: no actions, startup
+# hooks, event hooks, or keybindings.
+id = "fleetwatch"
+name = "fleetwatch"
+version = "0.1.0"
+min_herdr_version = "0.7.4"
+description = "Open a no-mistakes run from the fleetwatch board in a popup"
+platforms = ["linux", "macos"]
+
+[[panes]]
+id = "view"
+title = "no-mistakes run · esc closes, the run keeps going"
+placement = "popup"
+width = "90%"
+height = "90%"
+command = ["sh", "view.sh"]

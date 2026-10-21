@@ -1,21 +1,28 @@
 #!/usr/bin/env node
 // fleetwatch is a live terminal board of firstmate's no-mistakes runs.
 
+import {spawnSync} from 'node:child_process';
 import {statSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {parseArgs} from 'node:util';
 import {render} from 'ink';
 
-import {FleetSource} from './collect/collect.js';
+import {FleetSource, type Source} from './collect/collect.js';
+import {herdrSocket, PLUGIN_DIR, PLUGIN_ID} from './collect/herdr.js';
 import {execHandover, execRunner} from './collect/run.js';
+import {DemoSource} from './demo/fleet.js';
 import {App} from './tui/app.js';
 import {Model} from './tui/model.js';
 
 const usage = `usage: fleetwatch [--home <dir>]
+       fleetwatch --demo
+       fleetwatch herdr-setup
 
-  --home      firstmate home to watch (default $FM_HOME; one of the two is required)
-  -h, --help  show this help`;
+  --home       firstmate home to watch (default $FM_HOME; one of the two is required)
+  --demo       watch a built-in synthetic fleet instead of a firstmate home
+  herdr-setup  link fleetwatch's herdr plugin, so runs open in a herdr popup
+  -h, --help   show this help`;
 
 const INTERVAL_MS = 5_000;
 
@@ -36,40 +43,66 @@ try {
 	args = parseArgs({
 		options: {
 			home: {type: 'string', default: process.env['FM_HOME'] ?? ''},
+			demo: {type: 'boolean', default: false},
 			help: {type: 'boolean', short: 'h', default: false},
 		},
-	}).values;
+		allowPositionals: true,
+	});
 } catch (error) {
 	fail(`${(error as Error).message}\n\n${usage}`);
 }
-if (args.help) {
+if (args.values.help) {
 	process.stdout.write(`${usage}\n`);
 	process.exit(0);
 }
 
-if (!args.home) fail(`no firstmate home: pass --home <dir> or set FM_HOME\n\n${usage}`);
-const home = path.resolve(args.home);
-try {
-	if (!statSync(path.join(home, 'bin', 'fm-bearings-snapshot.sh')).isFile()) throw new Error('not a file');
-} catch {
-	fail(`${home} does not look like a firstmate home (no bin/fm-bearings-snapshot.sh); pass --home or set FM_HOME`);
+const [command, ...extra] = args.positionals;
+if (command === 'herdr-setup' && extra.length === 0) herdrSetup();
+if (command !== undefined) fail(`unknown command: ${args.positionals.join(' ')}\n\n${usage}`);
+
+// herdrSetup links the plugin that lets fleetwatch open runs in a herdr
+// popup. Linking only registers the plugin directory with herdr; it changes
+// no herdr config and adds no keybindings.
+function herdrSetup(): never {
+	process.stdout.write(`Linking the fleetwatch herdr plugin from ${PLUGIN_DIR}\n`);
+	const r = spawnSync('herdr', ['plugin', 'link', PLUGIN_DIR], {stdio: 'inherit'});
+	if (r.error) fail(`herdr: ${r.error.message}`);
+	if (r.status !== 0) fail(`herdr plugin link failed; if an older fleetwatch plugin is linked, run \`herdr plugin unlink ${PLUGIN_ID}\` first`);
+	process.stdout.write(`Done. Inside herdr, Enter now opens a run in a popup. Undo with \`herdr plugin unlink ${PLUGIN_ID}\`.\n`);
+	process.exit(0);
 }
 
-const source = new FleetSource(
-	{
-		home,
-		cacheDir: path.join(userCacheDir(), 'fleetwatch', 'secondmate-summary-cache'),
-		fleetTimeoutMs: 60_000,
-		taskTimeoutMs: 15_000,
-		concurrency: 4,
-	},
-	execRunner,
-	execHandover,
-);
+// Inside herdr, runs open in a popup through fleetwatch's herdr plugin.
+const socket = herdrSocket(process.env);
+let source: Source;
+if (args.values.demo) {
+	source = new DemoSource(socket);
+} else {
+	if (!args.values.home) fail(`no firstmate home: pass --home <dir> or set FM_HOME\n\n${usage}`);
+	const home = path.resolve(args.values.home);
+	try {
+		if (!statSync(path.join(home, 'bin', 'fm-bearings-snapshot.sh')).isFile()) throw new Error('not a file');
+	} catch {
+		fail(`${home} does not look like a firstmate home (no bin/fm-bearings-snapshot.sh); pass --home or set FM_HOME`);
+	}
+	source = new FleetSource(
+		{
+			home,
+			cacheDir: path.join(userCacheDir(), 'fleetwatch', 'secondmate-summary-cache'),
+			fleetTimeoutMs: 60_000,
+			taskTimeoutMs: 15_000,
+			concurrency: 4,
+			herdrSocket: socket,
+		},
+		execRunner,
+		execHandover,
+	);
+}
 const model = new Model({
 	intervalMs: INTERVAL_MS,
 	inactiveIntervalMs: 6 * INTERVAL_MS,
 	fleetIntervalMs: 15_000,
+	popup: socket !== undefined,
 });
 
 const app = render(<App model={model} source={source} />, {alternateScreen: true});

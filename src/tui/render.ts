@@ -194,7 +194,7 @@ function boardInfo(m: Model, end: number): string {
 
 export function footer(m: Model): string {
 	if (m.filtering) return `/${m.filter}${chalk.inverse(' ')}` + dim('  enter keeps · esc clears');
-	const help = '←/→ column · ↑/↓ card · enter open run · / filter · r refresh · q quit';
+	const help = `←/→ column · ↑/↓ card · enter open run${m.cfg.popup ? ' (esc closes it)' : ''} · / filter · r refresh · q quit`;
 	const parts: string[] = [];
 	if (m.filter) parts.push(warn(`filter: ${m.filter} (esc clears)`));
 	if (m.flash && m.now() - m.flashAt < FLASH_MS) parts.push(bold(m.flash));

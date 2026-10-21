@@ -17,7 +17,8 @@
     "fleetwatch": "dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "herdr-plugin"
   ],
   "engines": {
     "node": ">=22"
@@ -37,6 +38,7 @@
     "url": "https://github.com/davidrydberg/fleetwatch/issues"
   },
   "dependencies": {
+    "@lydell/node-pty": "^1.2.0-beta.15",
     "chalk": "^6.0.1",
     "ink": "^8.0.0",
     "react": "^19.3.1",

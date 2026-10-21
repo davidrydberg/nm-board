@@ -50,7 +50,7 @@ export interface Pipeline {
 	note: string;
 }
 
-function emptyPipeline(): Pipeline {
+export function emptyPipeline(): Pipeline {
 	return {
 		runId: '',
 		branch: '',
