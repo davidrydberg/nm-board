@@ -8,18 +8,18 @@ Enter jumps to that agent's pane in herdr.
 
 ## Install
 
+fleetwatch needs Node.js 22 or newer.
+
 ```sh
 npm i -g fleetwatch
 ```
 
-fleetwatch is a Go program.
-The npm package is a small Node.js launcher that runs the prebuilt binary for your platform, installed beside it as an optional dependency.
-Prebuilt binaries cover macOS and Linux on arm64 and x64.
-
-From a clone, with Go 1.24 or newer:
+From a clone:
 
 ```sh
-go install .
+npm install
+npm run build
+npm i -g .
 ```
 
 Either puts a `fleetwatch` command on your `PATH`.
@@ -49,8 +49,14 @@ fleetwatch has no default home: `--home` wins over `$FM_HOME`, and with neither 
 
 | Key | Action |
 | --- | --- |
-| `↑` `↓` | Select an agent |
+| `↑` `↓` or `k` `j` | Select an agent |
+| `g` `G` or Home End | First or last agent |
 | Enter | Focus the selected agent's pane in herdr |
+| `/` | Filter by id, project, state, or text; Enter keeps it, Esc clears it |
+| Esc | Clear the filter |
+| `d` | Hide or show inactive (done, unknown, absent) agents |
+| PgUp PgDn | Scroll the detail pane |
+| `r` | Refresh everything now, including merged PRs |
 | `q` or Ctrl+C | Quit |
 
 ## What it shows
@@ -86,8 +92,9 @@ Every command runs in the background under a timeout, so a slow command never bl
 | PR and checks | `gh pr view <url> --json ...` | Every 90s |
 | Focus | `herdr agent focus <pane> --session <session>` | On Enter |
 
-Done, unknown, and absent agents are re-read every 30s instead of every 5s.
-Merged and closed PRs are read once.
+Done and unknown agents are re-read every 30s instead of every 5s.
+Absent agents, such as remote secondmate homes, are not read at all.
+Merged and closed PRs are read once and then only on `r`.
 At most four local commands and two GitHub reads run at once.
 
 The snapshot's parent-side cache of remote secondmate summaries goes to the user cache directory (`~/Library/Caches/fleetwatch` on macOS, `$XDG_CACHE_HOME/fleetwatch` or `~/.cache/fleetwatch` elsewhere) instead of the home's `state/`.
@@ -99,29 +106,17 @@ A local secondmate's children are read from that secondmate's own home.
 ## Development
 
 ```sh
-go vet ./...
-go test ./...
-go run . --home ~/firstmate  # run from source
+npm install
+npm run typecheck # type-check the sources and tests
+npm test          # type-check, then run the tests with the Node test runner
+npm run build     # compile src/ to dist/, the files the package publishes
+node dist/cli.js  # run the local build
 ```
 
-Tests cover every parser, the collector, the model's update logic, and the program's wiring of keys and background reads.
-They use synthetic fixtures under `testdata`, written in the exact shapes of the real command output and state files, and need no live firstmate home, herdr, GitHub, or no-mistakes daemon.
+Tests cover every parser, the model's update logic, and the app's wiring of keys and background reads.
+They use synthetic fixtures under `test/fixtures`, written in the exact shapes of the real command output and state files, and need no live firstmate home, herdr, GitHub, or no-mistakes daemon.
 
-CI checks formatting, vets, runs the tests with the race detector, and builds the npm platform packages.
-
-## Releasing to npm
-
-The `fleetwatch` package depends on one package per platform, each holding that platform's binary.
-They are published together at the same version.
-
-1. Set the new version in `package.json`, both as `version` and for every entry in `optionalDependencies`.
-2. Run `sh scripts/npm-build.sh`. It cross-compiles the binary into `dist/npm/fleetwatch-<os>-<cpu>/` and writes each platform package.
-3. Publish each platform package first, then the launcher:
-
-```sh
-for dir in dist/npm/*/; do npm publish "$dir"; done
-npm publish
-```
+CI runs the type-check, the tests, and the build on Node 22 and 24.
 
 ## License
 
