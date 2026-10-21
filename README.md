@@ -273,6 +273,20 @@ To re-record the demo GIF after a visible change, install [vhs](https://github.c
 
 CI runs the type-check, the tests, and the build on Node 22 and 24.
 
+## Releasing
+
+`main` only accepts pull requests, so bump the version on a branch and publish from the merged `main`.
+`prepublishOnly` runs the type-check, the tests, and the build, so a broken version cannot be published.
+
+```sh
+npm version patch --no-git-tag-version  # or minor/major; open and merge a PR with the bump
+git checkout main && git pull
+npm publish --dry-run                   # check the tarball contents
+npm publish                             # publishes publicly to npm
+git tag v$(node -p "require('./package.json').version")
+git push origin --tags
+```
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
