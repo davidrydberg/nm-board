@@ -4,8 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {test} from 'node:test';
 
-import {bearingsCmd, FleetSource, focusCmd, readTail, type Config} from '../src/collect/collect.js';
-import {execRunner, type Cmd, type Runner} from '../src/collect/run.js';
+import {attachCmd, bearingsCmd, FleetSource, focusCmd, readTail, type Config} from '../src/collect/collect.js';
+import {execHandover, execRunner, type Cmd, type Handover, type Runner} from '../src/collect/run.js';
 import type {Agent} from '../src/fleet/agent.js';
 import {PR_FIELDS} from '../src/fleet/pr.js';
 import {fixture} from './helpers.js';
@@ -143,6 +143,43 @@ test('focus names the herdr session in both places', () => {
 		env: {HERDR_SESSION: 'default'},
 	});
 	assert.deepEqual(focusCmd('', 'wBR:p2'), {name: 'herdr', args: ['agent', 'focus', 'wBR:p2']});
+});
+
+// fakeHandover records the commands it is handed and fails with error.
+function fakeHandover(error?: string): Handover & {cmds: Cmd[]} {
+	const cmds: Cmd[] = [];
+	const run = async (cmd: Cmd) => {
+		cmds.push(cmd);
+		return error === undefined ? {stdout: ''} : {stdout: '', error};
+	};
+	return Object.assign(run, {cmds});
+}
+
+test("attach opens the run in no-mistakes' own view, in the task's worktree", async () => {
+	assert.deepEqual(attachCmd('/wt', '01JXB56R3S8P2RMK6RQF9R4EN9'), {name: 'no-mistakes', args: ['attach', '--run', '01JXB56R3S8P2RMK6RQF9R4EN9'], cwd: '/wt'});
+	const worktree = tmp();
+	const h = tmp();
+	const handover = fakeHandover();
+	const src = new FleetSource(config(h), fakeRunner({}), handover);
+	await src.attach(agent('pack-option-api', h), worktree, '01JXB56R3S8P2RMK6RQF9R4EN9');
+	await src.attach(agent('pack-option-api', h), path.join(worktree, 'gone'), '01JXB56R3S8P2RMK6RQF9R4EN9');
+	assert.deepEqual(
+		handover.cmds.map((c) => c.cwd),
+		[worktree, h],
+		'a gone worktree falls back to the home',
+	);
+	const failing = new FleetSource(config(h), fakeRunner({}), fakeHandover('no-mistakes: run not found'));
+	await assert.rejects(failing.attach(agent('pack-option-api', h), worktree, 'x'), /run not found/);
+});
+
+test('execHandover explains a failed or missing command', async () => {
+	assert.deepEqual(await execHandover({name: 'sh', args: ['-c', 'exit 0']}), {stdout: ''});
+	assert.deepEqual(await execHandover({name: 'sh', args: ['-c', "echo 'Error: unknown run' >&2; exit 1"]}), {stdout: '', error: 'sh: Error: unknown run'});
+	assert.deepEqual(await execHandover({name: 'fleetwatch-no-such-command', args: []}), {
+		stdout: '',
+		error: 'fleetwatch-no-such-command is not installed or not on PATH',
+	});
+	assert.equal(process.listenerCount('SIGINT'), 0, 'SIGINT is handed back');
 });
 
 test('readTail starts at a whole line', async () => {

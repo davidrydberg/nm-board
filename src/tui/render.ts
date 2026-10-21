@@ -1,5 +1,5 @@
-// Pure text rendering of the model: header, list, detail pane, and footer as
-// styled lines. The Ink app lays these out; tests read them directly.
+// Pure text rendering of the model: header, board, list, detail pane, and
+// footer as styled lines. The Ink app lays these out; tests read them directly.
 
 import chalk, {type ChalkInstance} from 'chalk';
 import stringWidth from 'string-width';
@@ -7,9 +7,10 @@ import wrapAnsi from 'wrap-ansi';
 
 import {lastActivity, type Agent, type Detail} from '../fleet/agent.js';
 import {MAIN_OWNER} from '../fleet/bearings.js';
-import {stage} from '../fleet/pipeline.js';
+import {stage, statusLabel} from '../fleet/pipeline.js';
 import {checksSummary} from '../fleet/pr.js';
 import type {Meta} from '../fleet/task.js';
+import {columnWidths, visibleEnd, type Card} from './board.js';
 import type {Model} from './model.js';
 import {DECISIONS_GROUP, isHeader} from './rows.js';
 
@@ -188,10 +189,116 @@ function rowLine(m: Model, i: number, w: number, now: number): string {
 	return ` ${iconStyle(icon)} ${id}${gap}${stateStyle(inf.state)(right)}`;
 }
 
+// boardLines is the board: column headings, cards, and an info line about
+// the selected card, filling the body height.
+export function boardLines(m: Model): string[] {
+	const h = m.bodyHeight();
+	const lines: string[] = [];
+	if (!m.board.some((c) => c.cards.length > 0)) {
+		if (!m.loaded && m.fleetError !== undefined) lines.push(error('the fleet snapshot failed; retrying'));
+		else if (!m.loaded || m.taskPending.size > 0) lines.push(dim('reading runs…'));
+		else if (m.filter) lines.push(dim('no runs match the filter'));
+		else lines.push(dim('no no-mistakes runs in flight; tab shows every agent'));
+		return lines;
+	}
+	const now = m.now();
+	const widths = columnWidths(m.board, m.columns);
+	const end = visibleEnd(widths, m.boardLeft, m.columns);
+	const blocks: string[][] = [];
+	for (let i = m.boardLeft; i < end; i++) blocks.push(columnLines(m, i, widths[i]!, h - 1, now));
+	for (let r = 0; r < h - 1; r++) lines.push(blocks.map((b) => b[r]!).join(dim('│')));
+	lines.push(boardInfo(m, end));
+	return lines;
+}
+
+function columnLines(m: Model, i: number, w: number, height: number, now: number): string[] {
+	const c = m.board[i]!;
+	const out: string[] = [];
+	if (c.cards.length === 0) {
+		out.push(pad(dim(truncate(` ${c.name}`, w)), w), dim('─'.repeat(w)));
+	} else {
+		const human = c.cards.some((card) => card.human);
+		out.push(pad((human ? decision : bold)(truncate(` ${c.name.toUpperCase()} ${c.cards.length}`, w)), w));
+		const top = i === m.col ? m.cardTop : 0;
+		const slots = m.cardSlots();
+		const above = top > 0 ? truncate(`↑ ${top} more `, w) : '';
+		out.push(dim(above + '─'.repeat(w - stringWidth(above))));
+		for (let k = top; k < c.cards.length && k < top + slots; k++) {
+			out.push(...cardLines(m, c.cards[k]!, w, i === m.col && k === m.card, now), ' '.repeat(w));
+		}
+		const below = c.cards.length - top - slots;
+		if (below > 0) out[out.length - 1] = pad(dim(truncate(` ↓ ${below} more`, w)), w);
+	}
+	while (out.length < height) out.push(' '.repeat(w));
+	return out.slice(0, height);
+}
+
+// cardLines is one card: the task, its step status in full, and its project
+// with how long the run has been at the step. A card waiting on a person is
+// drawn in the decision colour.
+function cardLines(m: Model, c: Card, w: number, selected: boolean, now: number): string[] {
+	const a = m.agents[c.agent]!;
+	const flag = (m.infos.get(a.id)?.decisions.length ?? 0) > 0 ? '⚑ ' : '';
+	const inner = w - 2;
+	const placed = m.placedAt.get(a.id);
+	const spent = c.spent || (placed ? `≥${age(now - placed.at)}` : '');
+	const right = spent ? ` ${spent}` : '';
+	const task = truncate(flag + a.id, inner);
+	const status = truncate(statusLabel(c.status), inner);
+	const project = truncate(projectLabel(a), Math.max(inner - stringWidth(right), 4));
+	const gap = ' '.repeat(Math.max(inner - stringWidth(project) - stringWidth(right), 0));
+	const bar = (c.human ? decision : barStyle(c.status))('▌');
+	if (selected) return [task, status, project + gap + right].map((l) => bar + chalk.inverse(pad(` ${l}`, w - 1)));
+	return [
+		`${bar} ${pad((c.human ? decision : bold)(task), inner)}`,
+		`${bar} ${pad(stepStyle(c.status)(status), inner)}`,
+		`${bar} ${dim(project)}${gap}${right}`,
+	];
+}
+
+function barStyle(status: string): ChalkInstance {
+	switch (status) {
+		case 'running':
+		case 'fixing':
+		case 'passed':
+			return chalk.green;
+		case 'unreadable':
+			return error;
+		default:
+			return chalk.gray;
+	}
+}
+
+// boardInfo names the selected card's task and run, and the columns
+// scrolled off either side.
+function boardInfo(m: Model, end: number): string {
+	const hidden = [m.boardLeft > 0 ? `‹ ${m.boardLeft} more` : '', end < m.board.length ? `${m.board.length - end} more ›` : '']
+		.filter((s) => s !== '')
+		.join('  ');
+	const right = hidden ? dim(` ${hidden}`) : '';
+	const a = m.selectedCardAgent();
+	let left = '';
+	if (a) {
+		const d = m.details.get(a.id);
+		const p = d?.pipeline;
+		let note = '';
+		if (d?.pipelineError) note = error(`no-mistakes: ${firstLine(d.pipelineError)}`);
+		else if (p?.noRun) note = dim(p.note || 'no run');
+		else if (p?.error) note = error(firstLine(p.error));
+		else if (p) note = dim(`run ${p.runId}`);
+		left = [bold(a.id), a.name && a.name !== a.id ? a.name : '', note].filter((s) => s !== '').join(dim(' · '));
+	}
+	const shown = truncate(left, Math.max(m.columns - stringWidth(right), 0));
+	return shown + ' '.repeat(Math.max(m.columns - stringWidth(shown) - stringWidth(right), 0)) + right;
+}
+
 export function footer(m: Model): string {
 	if (m.filtering) return `/${m.filter}${chalk.inverse(' ')}` + dim('  enter keeps · esc clears');
 	const toggle = m.hideInactive ? `d show ${m.hidden} inactive` : 'd hide inactive';
-	const help = `↑/↓ select · enter focus in herdr · / filter · ${toggle} · pgup/pgdn scroll · r refresh · q quit`;
+	const help =
+		m.view === 'board'
+			? '←/→ column · ↑/↓ card · enter open run · / filter · tab list · r refresh · q quit'
+			: `↑/↓ select · enter focus in herdr · / filter · ${toggle} · pgup/pgdn scroll · tab board · r refresh · q quit`;
 	const parts: string[] = [];
 	if (m.filter) parts.push(warn(`filter: ${m.filter} (esc clears)`));
 	if (m.flash && m.now() - m.flashAt < FLASH_MS) parts.push(bold(m.flash));
@@ -352,6 +459,7 @@ function stepMark(status: string): string {
 function stepStyle(status: string): ChalkInstance {
 	switch (status) {
 		case 'completed':
+		case 'passed':
 			return chalk.green;
 		case 'running':
 		case 'fixing':
@@ -360,6 +468,7 @@ function stepStyle(status: string): ChalkInstance {
 		case 'fix_review':
 			return chalk.yellow;
 		case 'failed':
+		case 'unreadable':
 			return chalk.red;
 		default:
 			return chalk.gray;

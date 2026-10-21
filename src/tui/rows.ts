@@ -112,6 +112,6 @@ function stateRank(state: string): number {
 	}
 }
 
-function matches(a: Agent, inf: Info, needle: string): boolean {
+export function matches(a: Agent, inf: Info, needle: string): boolean {
 	return [a.id, a.name, a.repo, inf.state, inf.doing].some((s) => s.toLowerCase().includes(needle));
 }

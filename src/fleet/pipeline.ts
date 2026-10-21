@@ -149,3 +149,50 @@ export function stage(p: Pipeline): string {
 export function askUser(p: Pipeline): Finding[] {
 	return p.gate?.findings.filter((f) => f.action.toLowerCase() === 'ask-user') ?? [];
 }
+
+// PIPELINE_STEPS is no-mistakes' step order. A run reporting other steps adds
+// them in its own order.
+export const PIPELINE_STEPS = ['intent', 'rebase', 'review', 'test', 'document', 'lint', 'push', 'pr', 'ci'];
+
+// Position is where a run stands: the step it is at, or finished, with that
+// step's status or the run's outcome as no-mistakes names it. spent is how
+// long it has been there, when no-mistakes reports it.
+export interface Position {
+	step: string;
+	finished: boolean;
+	status: string;
+	spent: string;
+}
+
+const terminalRun = new Set(['completed', 'failed', 'cancelled']);
+
+// position places a run on its gate's step, else its active step. A failed
+// run stays on the step that failed; any other finished run is finished.
+export function position(p: Pipeline): Position {
+	if (p.gate) return {step: p.gate.step, finished: false, status: p.gate.status, spent: parkedFor(p.awaitingAgent)};
+	const active = p.active[0];
+	if (active) return {step: active.step, finished: false, status: active.status, spent: active.activeFor};
+	const outcome = p.outcome || (terminalRun.has(p.status) ? p.status : '');
+	const failed = p.steps.find((s) => s.status === 'failed');
+	if (outcome === 'failed' && failed) return {step: failed.name, finished: false, status: 'failed', spent: ''};
+	if (outcome) return {step: '', finished: true, status: outcome, spent: ''};
+	const open = p.steps.find((s) => s.status !== 'completed' && s.status !== 'skipped');
+	if (open) return {step: open.name, finished: false, status: open.status, spent: ''};
+	return {step: '', finished: true, status: p.status, spent: ''};
+}
+
+// parkedFor reads the wait out of awaiting_agent, such as "parked 1d9h".
+function parkedFor(awaiting: string): string {
+	const last = awaiting.trim().split(/\s+/).at(-1) ?? '';
+	return /^(\d+[a-z]+)+$/.test(last) ? last : '';
+}
+
+// needsHuman reports a step status that waits on a person's decision.
+export function needsHuman(status: string): boolean {
+	return status === 'awaiting_approval' || status === 'fix_review' || status === 'failed';
+}
+
+// statusLabel spells a status in words: awaiting_approval reads awaiting approval.
+export function statusLabel(status: string): string {
+	return status.replaceAll('_', ' ');
+}

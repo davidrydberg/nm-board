@@ -9,7 +9,7 @@ import {parseBearings, type Bearings} from '../fleet/bearings.js';
 import {noRun, parsePipeline, type Pipeline} from '../fleet/pipeline.js';
 import {parsePr, PR_FIELDS, type PR} from '../fleet/pr.js';
 import {parseBusy, parseCrewState, parseMeta, parseStatusLog, type Meta} from '../fleet/task.js';
-import type {Cmd, Runner} from './run.js';
+import {execHandover, type Cmd, type Handover, type Runner} from './run.js';
 
 export interface Config {
 	home: string;
@@ -37,6 +37,9 @@ export interface Source {
 	task(a: Agent): Promise<Detail>;
 	pr(url: string): Promise<PR>;
 	focus(session: string, pane: string): Promise<void>;
+	// attach hands the terminal to no-mistakes' own view of one run until the
+	// captain leaves it.
+	attach(a: Agent, worktree: string, runId: string): Promise<void>;
 }
 
 // Limiter runs at most n tasks at once.
@@ -77,6 +80,11 @@ export function focusCmd(session: string, pane: string): Cmd {
 	return {name: 'herdr', args: ['agent', 'focus', pane, '--session', session], env: {HERDR_SESSION: session}};
 }
 
+// attachCmd opens no-mistakes' own view of one run.
+export function attachCmd(cwd: string, runId: string): Cmd {
+	return {name: 'no-mistakes', args: ['attach', '--run', runId], cwd};
+}
+
 export class FleetSource implements Source {
 	private readonly local: Limiter;
 	private readonly remote: Limiter;
@@ -84,6 +92,7 @@ export class FleetSource implements Source {
 	constructor(
 		private readonly cfg: Config,
 		private readonly run: Runner,
+		private readonly handover: Handover = execHandover,
 		private readonly now: () => number = Date.now,
 	) {
 		this.local = new Limiter(Math.max(cfg.concurrency, 1));
@@ -191,6 +200,14 @@ export class FleetSource implements Source {
 
 	async focus(session: string, pane: string): Promise<void> {
 		const r = await this.run(focusCmd(session, pane), this.cfg.focusTimeoutMs);
+		if (r.error) throw new Error(r.error);
+	}
+
+	// attach runs in the task's worktree, or in its home once the worktree is
+	// gone, like the pipeline read.
+	async attach(a: Agent, worktree: string, runId: string): Promise<void> {
+		const cwd = (await isDir(worktree)) ? worktree : a.home;
+		const r = await this.handover(attachCmd(cwd, runId));
 		if (r.error) throw new Error(r.error);
 	}
 }

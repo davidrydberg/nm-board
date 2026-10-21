@@ -1,7 +1,7 @@
 {
   "name": "fleetwatch",
   "version": "0.1.0",
-  "description": "Live terminal view of firstmate's agents: no-mistakes stage, PRs, status, and captain decisions",
+  "description": "Live terminal board of firstmate's no-mistakes runs, with a list view of every agent",
   "keywords": [
     "cli",
     "tui",

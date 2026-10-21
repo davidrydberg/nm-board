@@ -7,6 +7,7 @@ import type {Fleet} from '../collect/collect.js';
 import type {Agent, Detail} from '../fleet/agent.js';
 import {emptyBearings, type Bearings} from '../fleet/bearings.js';
 import {isTerminal, type PR} from '../fleet/pr.js';
+import {buildBoard, CARD_LINES, columnWidths, place, visibleEnd, type Card, type Column} from './board.js';
 import {detailLines} from './render.js';
 import {buildRows, deriveInfo, isHeader, type Info, type Row} from './rows.js';
 
@@ -26,12 +27,15 @@ export type Effect =
 	| {kind: 'task'; agent: Agent}
 	| {kind: 'pr'; url: string}
 	| {kind: 'focus'; id: string; session: string; pane: string}
+	| {kind: 'attach'; agent: Agent; worktree: string; runId: string}
 	| {kind: 'quit'};
 
 // Key mirrors the parts of Ink's Key fleetwatch reacts to.
 export interface Key {
 	upArrow?: boolean;
 	downArrow?: boolean;
+	leftArrow?: boolean;
+	rightArrow?: boolean;
 	pageUp?: boolean;
 	pageDown?: boolean;
 	home?: boolean;
@@ -54,6 +58,8 @@ export type Event =
 	| {type: 'prError'; url: string; error: string}
 	| {type: 'focused'; id: string}
 	| {type: 'focusError'; id: string; error: string}
+	| {type: 'attached'; id: string}
+	| {type: 'attachError'; id: string; error: string}
 	| {type: 'key'; input: string; key: Key}
 	| {type: 'resize'; columns: number; rows: number};
 
@@ -64,6 +70,13 @@ export interface PrEntry {
 	done?: number; // last attempt finished
 	pending: boolean;
 	forced: boolean;
+}
+
+// Placed is where a task's run stood when fleetwatch first saw it there.
+interface Placed {
+	column: string;
+	status: string;
+	at: number;
 }
 
 export class Model {
@@ -83,6 +96,21 @@ export class Model {
 	prs = new Map<string, PrEntry>();
 
 	infos = new Map<string, Info>();
+	// view is the board of no-mistakes runs, or the v1 list of agents.
+	view: 'board' | 'list' = 'board';
+
+	board: Column[] = [];
+	col = 0; // index into board
+	card = 0; // index into the column's cards
+	cardId = ''; // the selected card's agent
+	cardChosen = false; // the user has moved the board selection
+	boardLeft = 0; // first column on screen
+	cardTop = 0; // first card on screen in the selected column
+	cardTopFor = '';
+	// placedAt is when each task was first seen where it is now, for cards
+	// whose time there no-mistakes does not report.
+	placedAt = new Map<string, Placed>();
+
 	rows: Row[] = [];
 	hidden = 0; // inactive agents hideInactive left out
 	cursor = 0; // index into rows; always an agent row when any exist
@@ -167,6 +195,13 @@ export class Model {
 			case 'focusError':
 				this.setFlash(`focus ${ev.id} failed: ${ev.error}`);
 				break;
+			case 'attached':
+			case 'attachError':
+				// Whatever the captain did in the run's view shows on the board now.
+				if (ev.type === 'attachError') this.setFlash(`could not open the run of ${ev.id}: ${ev.error}`);
+				this.taskDone.delete(ev.id);
+				effects.push(...this.schedule());
+				break;
 			case 'key':
 				effects.push(...this.key(ev.input, ev.key));
 				break;
@@ -229,25 +264,50 @@ export class Model {
 			this.rebuild();
 			return [];
 		}
-		if (key.upArrow || input === 'k') this.move(-1);
+		if (key.escape) {
+			if (this.filter) {
+				this.filter = '';
+				this.rebuild();
+			}
+		} else if (key.tab) this.view = this.view === 'board' ? 'list' : 'board';
+		else if (input === 'q') return [{kind: 'quit'}];
+		else if (input === '/') this.filtering = true;
+		else if (input === 'r') return this.forceRefresh();
+		else if (this.view === 'board') return this.boardKey(input, key);
+		else if (key.upArrow || input === 'k') this.move(-1);
 		else if (key.downArrow || input === 'j') this.move(1);
 		else if (key.home || input === 'g') this.move(-this.rows.length);
 		else if (key.end || input === 'G') this.move(this.rows.length);
 		else if (key.pageUp) this.scrollDetail(-1);
 		else if (key.pageDown) this.scrollDetail(1);
 		else if (key.return) return this.focusSelected();
-		else if (key.escape) {
-			if (this.filter) {
-				this.filter = '';
-				this.rebuild();
-			}
-		} else if (input === 'q') return [{kind: 'quit'}];
-		else if (input === '/') this.filtering = true;
 		else if (input === 'd') {
 			this.hideInactive = !this.hideInactive;
 			this.rebuild();
-		} else if (input === 'r') return this.forceRefresh();
+		}
 		return [];
+	}
+
+	private boardKey(input: string, key: Key): Effect[] {
+		if (key.leftArrow || input === 'h') this.moveColumn(-1);
+		else if (key.rightArrow || input === 'l') this.moveColumn(1);
+		else if (key.upArrow || input === 'k') this.moveCard(-1);
+		else if (key.downArrow || input === 'j') this.moveCard(1);
+		else if (key.return) return this.attachSelected();
+		return [];
+	}
+
+	// attachSelected opens no-mistakes' own view of the selected card's run.
+	private attachSelected(): Effect[] {
+		const a = this.selectedCardAgent();
+		if (!a) return [];
+		const d = this.details.get(a.id);
+		const runId = d?.pipeline && !d.pipeline.noRun ? d.pipeline.runId : '';
+		if (!runId) {
+			this.setFlash(`${a.id} has no no-mistakes run to open`);
+			return [];
+		}
+		return [{kind: 'attach', agent: a, worktree: d?.meta?.worktree ?? '', runId}];
 	}
 
 	private focusSelected(): Effect[] {
@@ -277,13 +337,22 @@ export class Model {
 		}
 	}
 
-	// derive recomputes per-agent info, registers PRs to watch, and rebuilds rows.
+	// derive recomputes per-agent info, registers PRs to watch, notes where
+	// each run stands, and rebuilds rows and board.
 	private derive(): void {
 		this.infos = new Map();
 		const wanted = new Set<string>();
+		const placedAt = new Map<string, Placed>();
 		for (const a of this.agents) {
-			const inf = deriveInfo(a, this.details.get(a.id), this.bearings);
+			const d = this.details.get(a.id);
+			const inf = deriveInfo(a, d, this.bearings);
 			this.infos.set(a.id, inf);
+			const at = place(d);
+			if (at) {
+				const was = this.placedAt.get(a.id);
+				const same = was && was.column === at.column && was.status === at.status;
+				placedAt.set(a.id, same ? was : {column: at.column, status: at.status, at: this.now()});
+			}
 			if (inf.prUrl) {
 				wanted.add(inf.prUrl);
 				if (!this.prs.has(inf.prUrl)) this.prs.set(inf.prUrl, {pending: false, forced: false});
@@ -292,12 +361,14 @@ export class Model {
 		for (const [url, e] of this.prs) {
 			if (!wanted.has(url) && !e.pending) this.prs.delete(url);
 		}
+		this.placedAt = placedAt;
 		this.rebuild();
 	}
 
 	// rebuild regroups rows and keeps the selection on the same agent. Until
 	// the user picks one, the selection stays on the top row as groups fill in.
 	private rebuild(): void {
+		this.rebuildBoard();
 		({rows: this.rows, hidden: this.hidden} = buildRows(this.agents, this.infos, this.filter, this.hideInactive));
 		if (this.chosen) {
 			const i = this.rows.findIndex((r) => !isHeader(r) && this.agents[r.agent]!.id === this.selected);
@@ -341,6 +412,60 @@ export class Model {
 		this.selected = '';
 	}
 
+	// rebuildBoard re-lays the board and keeps the selection on the same card.
+	// Until the user picks one, the first card is selected. When the selected
+	// card leaves the board, the selection moves to the nearest card.
+	private rebuildBoard(): void {
+		this.board = buildBoard(this.agents, this.details, this.infos, this.filter);
+		const col = this.board.findIndex((c) => c.cards.some((card) => this.agents[card.agent]!.id === this.cardId));
+		if (this.cardChosen && col >= 0) {
+			this.col = col;
+			this.card = this.board[col]!.cards.findIndex((card) => this.agents[card.agent]!.id === this.cardId);
+		} else {
+			if (!this.cardChosen) [this.col, this.card] = [0, 0];
+			this.col = Math.min(this.col, this.board.length - 1);
+			this.moveColumn(0);
+		}
+		this.cardId = this.selectedCardAgent()?.id ?? '';
+	}
+
+	// moveColumn moves the board selection to the nearest column with cards
+	// in a direction, or with delta 0 to the nearest one either way.
+	private moveColumn(delta: number): void {
+		const has = (i: number) => (this.board[i]?.cards.length ?? 0) > 0;
+		let next = -1;
+		if (delta === 0) {
+			for (let d = 0; d < this.board.length && next < 0; d++) next = has(this.col - d) ? this.col - d : has(this.col + d) ? this.col + d : -1;
+		} else {
+			for (let i = this.col + delta; i >= 0 && i < this.board.length && next < 0; i += delta) if (has(i)) next = i;
+		}
+		if (next < 0) {
+			if (delta === 0) this.card = 0;
+			return;
+		}
+		if (delta !== 0) this.cardChosen = true;
+		this.col = next;
+		this.card = Math.min(this.card, this.board[next]!.cards.length - 1);
+		this.cardId = this.selectedCardAgent()?.id ?? '';
+	}
+
+	private moveCard(delta: number): void {
+		const n = this.board[this.col]?.cards.length ?? 0;
+		if (n === 0) return;
+		this.cardChosen = true;
+		this.card = Math.min(Math.max(this.card + delta, 0), n - 1);
+		this.cardId = this.selectedCardAgent()?.id ?? '';
+	}
+
+	selectedCard(): Card | undefined {
+		return this.board[this.col]?.cards[this.card];
+	}
+
+	selectedCardAgent(): Agent | undefined {
+		const c = this.selectedCard();
+		return c ? this.agents[c.agent] : undefined;
+	}
+
 	selectedAgent(): Agent | undefined {
 		const r = this.rows[this.cursor];
 		return r && !isHeader(r) ? this.agents[r.agent] : undefined;
@@ -359,6 +484,12 @@ export class Model {
 		return Math.max(this.height - 2, 1);
 	}
 
+	// cardSlots is how many cards fit in a column between its heading and the
+	// board's info line. Each card takes CARD_LINES lines and a gap.
+	cardSlots(): number {
+		return Math.max(Math.floor((this.bodyHeight() - 3 + 1) / (CARD_LINES + 1)), 1);
+	}
+
 	private scrollDetail(direction: number): void {
 		const a = this.selectedAgent();
 		if (!a) return;
@@ -370,6 +501,7 @@ export class Model {
 	// layout keeps the selected row on screen and resets the detail scroll
 	// when the selection changes.
 	private layout(): void {
+		this.layoutBoard();
 		const h = this.bodyHeight();
 		if (this.cursor < this.listTop) this.listTop = this.cursor;
 		if (this.cursor >= this.listTop + h) this.listTop = this.cursor - h + 1;
@@ -381,5 +513,22 @@ export class Model {
 			this.detailTop = 0;
 			this.detailFor = this.selected;
 		}
+	}
+
+	// layoutBoard scrolls the board sideways so the selected column shows,
+	// using all the width it can, and down so the selected card shows.
+	private layoutBoard(): void {
+		const widths = columnWidths(this.board, this.columns);
+		if (this.col < this.boardLeft) this.boardLeft = this.col;
+		while (this.boardLeft < this.col && visibleEnd(widths, this.boardLeft, this.columns) <= this.col) this.boardLeft++;
+		while (this.boardLeft > 0 && visibleEnd(widths, this.boardLeft - 1, this.columns) === this.board.length) this.boardLeft--;
+		const name = this.board[this.col]?.name ?? '';
+		if (name !== this.cardTopFor) {
+			this.cardTop = 0;
+			this.cardTopFor = name;
+		}
+		const n = this.cardSlots();
+		if (this.card < this.cardTop) this.cardTop = this.card;
+		if (this.card >= this.cardTop + n) this.cardTop = this.card - n + 1;
 	}
 }

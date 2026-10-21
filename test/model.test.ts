@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
+import stringWidth from 'string-width';
 
 import type {Fleet} from '../src/collect/collect.js';
 import {buildRoster, type Detail} from '../src/fleet/agent.js';
@@ -8,7 +9,7 @@ import {parsePipeline} from '../src/fleet/pipeline.js';
 import {parsePr, type PR} from '../src/fleet/pr.js';
 import {parseCrewState, parseMeta, parseStatusLog} from '../src/fleet/task.js';
 import {Model, type Config, type Effect, type Event, type Key} from '../src/tui/model.js';
-import {detailLines, footer, freshness, listLines} from '../src/tui/render.js';
+import {boardLines, detailLines, footer, freshness, listLines} from '../src/tui/render.js';
 import {isHeader} from '../src/tui/rows.js';
 import {fixture} from './helpers.js';
 
@@ -27,6 +28,7 @@ class FakeSource {
 	calls: string[] = [];
 	fleetError?: string;
 	focusError?: string;
+	attachError?: string;
 	fleet: Fleet;
 	details: Record<string, Detail>;
 	prs: Record<string, PR>;
@@ -80,10 +82,25 @@ class FakeSource {
 			case 'focus':
 				this.calls.push(`focus:${e.session}:${e.pane}`);
 				return this.focusError ? {type: 'focusError', id: e.id, error: this.focusError} : {type: 'focused', id: e.id};
+			case 'attach':
+				this.calls.push(`attach:${e.agent.id}:${e.worktree}:${e.runId}`);
+				return this.attachError ? {type: 'attachError', id: e.agent.id, error: this.attachError} : {type: 'attached', id: e.agent.id};
 			case 'quit':
 				this.calls.push('quit');
 				return undefined;
 		}
+	}
+
+	// addRuns gives more fixture agents a no-mistakes run, so the board fills
+	// every kind of column.
+	addRuns(): void {
+		const run = (id: string, file: string) => {
+			this.details[id] = {...(this.details[id] ?? {status: [], fetchedAt: 0}), pipeline: parsePipeline(fixture(file))};
+		};
+		run('mailer-send-limits', 'nm-failed-pr.toon');
+		run('api-catalog-scope', 'nm-passed.toon');
+		run('web-admin-console', 'nm-cancelled.toon');
+		run('cli-status-view', 'nm-no-runs.toon');
 	}
 
 	take(): string[] {
@@ -94,14 +111,16 @@ class FakeSource {
 }
 
 // Harness drives the model like the app does, against a fake clock, running
-// each effect at once.
+// each effect at once. It opens on the list unless asked for the board.
 class Harness {
 	clock = 1792540000_000;
 	src = new FakeSource();
 	m = new Model(config, () => this.clock);
 
-	constructor({columns = 140, rows = 40, start = true} = {}) {
+	constructor({columns = 140, rows = 40, start = true, board = false, runs = false} = {}) {
+		if (runs) this.src.addRuns();
 		this.send({type: 'resize', columns, rows});
+		if (!board) this.key('', {tab: true});
 		if (start) this.run(this.m.start());
 	}
 
@@ -127,6 +146,11 @@ class Harness {
 
 	rowIds(): string[] {
 		return this.m.rows.map((r) => (isHeader(r) ? `#${r.header}` : this.m.agents[r.agent]!.id));
+	}
+
+	// cards lists the board's cards by column, as "<column>: <task> ...".
+	cards(): string[] {
+		return this.m.board.filter((c) => c.cards.length > 0).map((c) => `${c.name}: ${c.cards.map((card) => this.m.agents[card.agent]!.id).join(' ')}`);
 	}
 
 	select(id: string): void {
@@ -390,4 +414,138 @@ test('the detail pane shows decisions, pipeline, PR, and the absent secondmate',
 	const sm = detailLines(h.m, h.m.selectedAgent()!, 80).join('\n');
 	assert.match(sm, /ABSENT/);
 	assert.match(sm, /remote home on buildbox/);
+});
+
+test('the board is the default view and tab toggles the list', () => {
+	const h = new Harness({board: true});
+	assert.equal(h.m.view, 'board');
+	assert.deepEqual(h.cards(), ['review: pack-option-api', 'ci: pack-option-web']);
+	h.key('', {tab: true});
+	assert.equal(h.m.view, 'list');
+	assert.match(footer(h.m), /tab board/);
+	h.key('', {tab: true});
+	assert.equal(h.m.view, 'board');
+	assert.match(footer(h.m), /←\/→ column · ↑\/↓ card · enter open run/);
+});
+
+test('arrows move between columns with cards, and between cards', () => {
+	const h = new Harness({board: true, runs: true, columns: 200});
+	assert.deepEqual(h.cards(), [
+		'no run: cli-status-view',
+		'review: pack-option-api',
+		'pr: mailer-send-limits',
+		'ci: pack-option-web',
+		'finished: api-catalog-scope web-admin-console',
+	]);
+	assert.equal(h.m.cardId, 'cli-status-view', 'the first card is selected until the user moves');
+	const path: string[] = [];
+	for (let i = 0; i < 5; i++) {
+		h.key('', {rightArrow: true});
+		path.push(h.m.cardId);
+	}
+	assert.deepEqual(path, ['pack-option-api', 'mailer-send-limits', 'pack-option-web', 'api-catalog-scope', 'api-catalog-scope']);
+	h.key('', {downArrow: true});
+	assert.equal(h.m.cardId, 'web-admin-console');
+	h.key('j');
+	assert.equal(h.m.cardId, 'web-admin-console', 'down stops at the last card');
+	h.key('', {leftArrow: true});
+	assert.equal(h.m.cardId, 'pack-option-web', 'a shorter column keeps the cursor on its last card');
+	h.key('h');
+	h.key('k');
+	assert.equal(h.m.cardId, 'mailer-send-limits');
+});
+
+test('the selection follows its card when the run moves on', () => {
+	const h = new Harness({board: true, runs: true, columns: 200});
+	h.key('', {rightArrow: true});
+	assert.equal(h.m.cardId, 'pack-option-api');
+	const d = {...h.src.details['pack-option-api']!, pipeline: parsePipeline(fixture('nm-ci-running.toon'))};
+	h.send({type: 'task', id: 'pack-option-api', detail: d});
+	assert.equal(h.m.cardId, 'pack-option-api');
+	assert.equal(h.m.board[h.m.col]!.name, 'ci');
+	assert.ok(h.cards().includes('ci: pack-option-api pack-option-web'));
+});
+
+test('a card that leaves the board leaves the selection nearby', () => {
+	const h = new Harness({board: true, runs: true, columns: 200});
+	h.key('', {rightArrow: true});
+	h.key('', {rightArrow: true});
+	assert.equal(h.m.cardId, 'mailer-send-limits');
+	h.send({type: 'task', id: 'mailer-send-limits', detail: {status: [], fetchedAt: h.clock}});
+	assert.equal(h.m.cardId, 'pack-option-web', 'the nearest column with cards');
+});
+
+test('the filter narrows the board', () => {
+	const h = new Harness({board: true, runs: true, columns: 200});
+	h.key('/');
+	for (const ch of 'shop-web') h.key(ch);
+	h.key('', {return: true});
+	assert.deepEqual(h.cards(), ['ci: pack-option-web', 'finished: web-admin-console']);
+	assert.equal(h.m.cardId, 'pack-option-web');
+	h.key('', {escape: true});
+	assert.equal(h.cards().length, 5);
+});
+
+test('enter opens the selected run in no-mistakes and re-reads the task after', () => {
+	const h = new Harness({board: true, runs: true, columns: 200});
+	h.src.take();
+	h.key('', {return: true});
+	assert.deepEqual(h.src.take(), [], 'a task without a run opens nothing');
+	assert.equal(h.m.flash, 'cli-status-view has no no-mistakes run to open');
+
+	for (let i = 0; i < 3; i++) h.key('', {rightArrow: true});
+	assert.equal(h.m.cardId, 'pack-option-web');
+	h.key('', {return: true});
+	assert.deepEqual(h.src.take(), [
+		'attach:pack-option-web:/home/dev/.treehouse/shop-web-3f2a1c/4/shop-web:01JXHQQMXAAMQFC2392B359VRQ',
+		'task:pack-option-web',
+	]);
+
+	h.src.attachError = 'no-mistakes is not installed or not on PATH';
+	h.key('', {return: true});
+	assert.equal(h.m.flash, 'could not open the run of pack-option-web: no-mistakes is not installed or not on PATH');
+});
+
+test('cards show task, project, status, and time at the step; people-waiting cards stand out', () => {
+	const h = new Harness({board: true, runs: true, columns: 200});
+	h.clock += 90_000;
+	const lines = boardLines(h.m);
+	assert.equal(lines.length, h.m.bodyHeight());
+	for (const l of lines) assert.ok(stringWidth(l) <= 200, `line wider than the screen: ${l}`);
+	const text = lines.join('\n');
+	for (const want of ['REVIEW 1', '⚑ pack-option-api', 'PR 1', 'CI 1', 'FINISHED 2', ' intent', 'shop-api'])
+		assert.ok(text.includes(want), `board lacks ${want}`);
+	for (const want of [/▌ awaiting approval /, /▌ running /, /▌ passed /, /▌ cancelled /, /▌ shop-api +1d9h/, /▌ shop-web +1d9h/, /▌ shop-api +≥1m/, /▌ shop-web +≥1m/])
+		assert.match(text, want);
+	assert.match(lines.at(-1)!, /^cli-status-view · Status view: a live terminal view of running agents · 0 runs yet in this repository/);
+	assert.equal(h.m.board.find((c) => c.name === 'pr')!.cards[0]!.human, true);
+});
+
+test('columns that do not fit scroll sideways to follow the selection', () => {
+	const h = new Harness({board: true, runs: true, columns: 100});
+	assert.equal(h.m.boardLeft, 0);
+	assert.match(boardLines(h.m).at(-1)!, /\d+ more ›$/);
+	for (let i = 0; i < 4; i++) h.key('', {rightArrow: true});
+	assert.equal(h.m.cardId, 'api-catalog-scope');
+	assert.ok(h.m.boardLeft > 0);
+	const lines = boardLines(h.m);
+	assert.match(lines[0]!, /FINISHED 2/);
+	assert.doesNotMatch(lines[0]!, /NO RUN/);
+	assert.match(lines.at(-1)!, /‹ \d+ more$/);
+	for (const l of lines) assert.ok(stringWidth(l) <= 100);
+	for (let i = 0; i < 4; i++) h.key('', {leftArrow: true});
+	assert.equal(h.m.boardLeft, 0);
+});
+
+test('a long column scrolls down to the selected card', () => {
+	const h = new Harness({board: true, runs: true, columns: 200, rows: 10});
+	const ci = parsePipeline(fixture('nm-ci-running.toon'));
+	for (const id of ['mailer-send-limits', 'api-catalog-scope', 'web-admin-console', 'cli-status-view']) h.send({type: 'task', id, detail: {status: [], fetchedAt: h.clock, pipeline: ci}});
+	assert.equal(h.m.cardSlots(), 1);
+	h.key('', {rightArrow: true});
+	h.key('', {rightArrow: true});
+	assert.equal(h.m.board[h.m.col]!.name, 'ci');
+	for (let i = 0; i < 4; i++) h.key('', {downArrow: true});
+	assert.equal(h.m.cardTop, 4);
+	assert.match(boardLines(h.m)[1]!, /↑ 4 more/);
 });

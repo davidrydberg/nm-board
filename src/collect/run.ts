@@ -61,12 +61,41 @@ export const execRunner: Runner = (cmd, timeoutMs) =>
 		child.on('error', (error) => finish({stdout, error: `${name}: ${error.message}`}));
 		child.on('close', (code, signal) => {
 			if (timedOut) return;
-			if (code === 0) {
-				finish({stdout});
-				return;
-			}
-			const first = stderr.trim().split('\n')[0];
-			const why = first || (signal ? `killed by ${signal}` : `exit status ${code}`);
-			finish({stdout, error: `${name}: ${why}`});
+			finish(code === 0 ? {stdout} : {stdout, error: failure(name, stderr, code, signal)});
 		});
+	});
+
+// failure explains a non-zero exit by the first line of stderr.
+function failure(name: string, stderr: string, code: number | null, signal: NodeJS.Signals | null): string {
+	const first = stderr.trim().split('\n')[0];
+	return `${name}: ${first || (signal ? `killed by ${signal}` : `exit status ${code}`)}`;
+}
+
+// Handover runs a command that takes over the terminal until it exits.
+export type Handover = (cmd: Cmd) => Promise<RunResult>;
+
+// execHandover runs a command on fleetwatch's own terminal: it reads stdin and
+// draws on stdout, and its stderr is kept to explain a failure. While it runs,
+// fleetwatch ignores SIGINT, so a Ctrl+C meant for the command cannot kill it.
+export const execHandover: Handover = (cmd) =>
+	new Promise((resolve) => {
+		const name = commandName(cmd);
+		let stderr = '';
+		const ignore = () => {};
+		process.on('SIGINT', ignore);
+		let settled = false;
+		const finish = (error?: string) => {
+			if (settled) return;
+			settled = true;
+			process.off('SIGINT', ignore);
+			resolve(error === undefined ? {stdout: ''} : {stdout: '', error});
+		};
+		const child = spawn(cmd.name, cmd.args, {cwd: cmd.cwd, env: {...process.env, ...cmd.env}, stdio: ['inherit', 'inherit', 'pipe']});
+		child.stderr.setEncoding('utf8').on('data', (s: string) => {
+			if (stderr.length < 8192) stderr += s;
+		});
+		child.on('error', (error: NodeJS.ErrnoException) =>
+			finish(error.code === 'ENOENT' ? `${name} is not installed or not on PATH` : `${name}: ${error.message}`),
+		);
+		child.on('close', (code, signal) => finish(code === 0 ? undefined : failure(name, stderr, code, signal)));
 	});

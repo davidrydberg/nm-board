@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {describe, test} from 'node:test';
 
 import {parseBearings, recordedPr, secondmateHost} from '../src/fleet/bearings.js';
-import {askUser, parsePipeline, stage} from '../src/fleet/pipeline.js';
+import {askUser, needsHuman, parsePipeline, position, stage, statusLabel} from '../src/fleet/pipeline.js';
 import {checksSummary, isTerminal, parsePr} from '../src/fleet/pr.js';
 import {parseToon, toonObject, toonString, toonTable} from '../src/fleet/toon.js';
 import {lastStamped, openDecisions, parseBusy, parseCrewState, parseMeta, parseStatusLog} from '../src/fleet/task.js';
@@ -97,6 +97,34 @@ describe('parsePipeline', () => {
 			assert.equal(stage(p), 'no run');
 		}
 		assert.throws(() => parsePipeline('error: daemon unreachable\n'), /neither a run nor a current branch/);
+	});
+});
+
+describe('position', () => {
+	test('a gate, an active step, and a failed step hold the run where it stands', () => {
+		const gate = parsePipeline(fixture('nm-gate.toon'));
+		assert.deepEqual(position(gate), {step: 'review', finished: false, status: 'awaiting_approval', spent: '1d9h'});
+		const fixReview = {...gate, awaitingAgent: '', gate: {...gate.gate!, status: 'fix_review'}};
+		assert.deepEqual(position(fixReview), {step: 'review', finished: false, status: 'fix_review', spent: ''});
+		assert.deepEqual(position(parsePipeline(fixture('nm-ci-running.toon'))), {step: 'ci', finished: false, status: 'running', spent: '1d9h'});
+		assert.deepEqual(position(parsePipeline(fixture('nm-failed-pr.toon'))), {step: 'pr', finished: false, status: 'failed', spent: ''});
+	});
+
+	test('passed and cancelled runs are finished with their outcome', () => {
+		assert.deepEqual(position(parsePipeline(fixture('nm-passed.toon'))), {step: '', finished: true, status: 'passed', spent: ''});
+		assert.deepEqual(position(parsePipeline(fixture('nm-cancelled.toon'))), {step: '', finished: true, status: 'cancelled', spent: ''});
+	});
+
+	test('a run between steps stands at its first open step', () => {
+		const gate = parsePipeline(fixture('nm-gate.toon'));
+		const between = {...gate, gate: undefined, steps: gate.steps.map((s) => (s.name === 'review' ? {...s, status: 'completed'} : s))};
+		assert.deepEqual(position(between), {step: 'test', finished: false, status: 'pending', spent: ''});
+	});
+
+	test('statuses waiting on a person, spelled in words', () => {
+		assert.deepEqual(['awaiting_approval', 'fix_review', 'failed', 'running', 'fixing', 'passed'].map(needsHuman), [true, true, true, false, false, false]);
+		assert.equal(statusLabel('awaiting_approval'), 'awaiting approval');
+		assert.equal(statusLabel('fix_review'), 'fix review');
 	});
 });
 

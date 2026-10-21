@@ -3,7 +3,7 @@ import {useEffect, useReducer, useRef} from 'react';
 
 import type {Source} from '../collect/collect.js';
 import type {Effect, Event, Model} from './model.js';
-import {detailLines, footer, header, listLines} from './render.js';
+import {boardLines, detailLines, footer, header, listLines} from './render.js';
 
 const TICK_MS = 1000;
 
@@ -11,8 +11,10 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 
 // App renders the model and runs its effects: every read goes through the
 // source in the background, and its result returns to the model as an event.
+// Opening a run suspends the app and hands the terminal to no-mistakes until
+// the captain leaves its view.
 export function App({model, source}: {model: Model; source: Source}) {
-	const {exit} = useApp();
+	const {exit, suspendTerminal} = useApp();
 	const {columns, rows} = useWindowSize();
 	const [, rerender] = useReducer((n: number) => n + 1, 0);
 
@@ -48,6 +50,12 @@ export function App({model, source}: {model: Model; source: Source}) {
 						(error: unknown) => dispatch({type: 'focusError', id: e.id, error: message(error)}),
 					);
 					break;
+				case 'attach':
+					suspendTerminal(() => source.attach(e.agent, e.worktree, e.runId)).then(
+						() => dispatch({type: 'attached', id: e.agent.id}),
+						(error: unknown) => dispatch({type: 'attachError', id: e.agent.id, error: message(error)}),
+					);
+					break;
 				case 'quit':
 					exit();
 					break;
@@ -66,6 +74,17 @@ export function App({model, source}: {model: Model; source: Source}) {
 	useInput((input, key) => dispatch({type: 'key', input, key}));
 
 	const h = model.bodyHeight();
+	if (model.view === 'board') {
+		return (
+			<Box flexDirection="column" width={columns} height={rows}>
+				<Text wrap="truncate">{header(model)}</Text>
+				<Box height={h}>
+					<Text wrap="truncate">{boardLines(model).join('\n')}</Text>
+				</Box>
+				<Text wrap="truncate">{footer(model)}</Text>
+			</Box>
+		);
+	}
 	const selected = model.selectedAgent();
 	const detail = selected ? detailLines(model, selected, model.detailWidth()) : [];
 	const empty = model.loaded ? 'Select an agent.' : 'Waiting for the first fleet snapshot.';
