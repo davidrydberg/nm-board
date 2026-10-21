@@ -149,7 +149,7 @@ Each message below is what fleetwatch prints, and what to do about it.
 | `fleetwatch: herdr is not installed or not on PATH` from `herdr-setup` | herdr is not installed. | Install herdr, or skip the popup: Enter still works full screen. |
 | `herdr plugin link failed` | An older fleetwatch plugin is already linked from another path. | `herdr plugin unlink fleetwatch`, then `fleetwatch herdr-setup` again. |
 | The popup stops working after you reinstall fleetwatch or switch Node versions | herdr still points at the old install folder. | `herdr plugin unlink fleetwatch`, then `fleetwatch herdr-setup`. |
-| The popup shows `no-mistakes exited with status N` and nothing else | `no-mistakes` is not on the `PATH` herdr starts plugins with, for example when herdr was launched from a desktop launcher. | Start herdr from a terminal where `no-mistakes --version` works. |
+| The popup shows only `no-mistakes exited with status N; if it printed nothing above, it may not be on the PATH herdr runs plugins with` | `no-mistakes` is not on the `PATH` herdr starts plugins with, for example when herdr was launched from a desktop launcher. | Start herdr from a terminal where `no-mistakes --version` works. |
 | `herdr plugin unlink fleetwatch` says `server_not_running` | `unlink` needs a running herdr, while `link` does not. | Start herdr, then run `unlink` again. |
 | `ERROR Raw mode is not supported on the current process.stdin` | fleetwatch is not attached to an interactive terminal, for example when piped or run from a script. | Run it directly in a terminal. |
 | `npm warn EBADENGINE ... required: { node: '>=22' }` | Your Node.js is older than 22. | Upgrade Node.js. |
