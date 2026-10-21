@@ -8,6 +8,7 @@ import {buildRoster, type Agent, type Detail} from '../fleet/agent.js';
 import {parseBearings, type Bearings} from '../fleet/bearings.js';
 import {noRun, parsePipeline, type Pipeline} from '../fleet/pipeline.js';
 import {parseCrewState, parseMeta, parseStatusLog, type Meta} from '../fleet/task.js';
+import {openPopup} from './herdr.js';
 import {execHandover, type Cmd, type Handover, type Runner} from './run.js';
 
 export interface Config {
@@ -18,6 +19,9 @@ export interface Config {
 	fleetTimeoutMs: number;
 	taskTimeoutMs: number;
 	concurrency: number; // concurrent local commands
+	// herdrSocket is the API socket of the herdr server fleetwatch runs in;
+	// with it, runs open in a herdr popup.
+	herdrSocket?: string;
 }
 
 // Fleet is one bearings read and the agents it yields.
@@ -31,6 +35,9 @@ export interface Fleet {
 export interface Source {
 	fleet(): Promise<Fleet>;
 	task(a: Agent): Promise<Detail>;
+	// popup opens no-mistakes' own view of one run in a herdr popup over the
+	// board. It resolves false when fleetwatch does not run inside herdr.
+	popup(a: Agent, worktree: string, runId: string): Promise<boolean>;
 	// attach hands the terminal to no-mistakes' own view of one run until the
 	// captain leaves it.
 	attach(a: Agent, worktree: string, runId: string): Promise<void>;
@@ -166,14 +173,21 @@ export class FleetSource implements Source {
 		return p;
 	}
 
-	// attach runs in the task's worktree, or in its home once the worktree is
-	// gone, like the pipeline read.
+	// popup and attach run no-mistakes in the task's worktree, or in its home
+	// once the worktree is gone, like the pipeline read.
+	async popup(a: Agent, worktree: string, runId: string): Promise<boolean> {
+		if (!this.cfg.herdrSocket) return false;
+		await openPopup(this.cfg.herdrSocket, {runId, cwd: await viewDir(a, worktree)});
+		return true;
+	}
+
 	async attach(a: Agent, worktree: string, runId: string): Promise<void> {
-		const cwd = (await isDir(worktree)) ? worktree : a.home;
-		const r = await this.handover(attachCmd(cwd, runId));
+		const r = await this.handover(attachCmd(await viewDir(a, worktree), runId));
 		if (r.error) throw new Error(r.error);
 	}
 }
+
+const viewDir = async (a: Agent, worktree: string) => ((await isDir(worktree)) ? worktree : a.home);
 
 async function readOptional(file: string): Promise<string | undefined> {
 	try {

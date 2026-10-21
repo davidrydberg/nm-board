@@ -16,6 +16,8 @@ export interface Config {
 	inactiveIntervalMs: number;
 	// fleetIntervalMs is how often the bearings snapshot is re-read.
 	fleetIntervalMs: number;
+	// popup is set when Enter opens runs in a herdr popup, which Esc closes.
+	popup?: boolean;
 }
 
 export type Effect =
@@ -44,7 +46,7 @@ export type Event =
 	| {type: 'fleet'; fleet: Fleet}
 	| {type: 'fleetError'; error: string}
 	| {type: 'task'; id: string; detail: Detail}
-	| {type: 'attached'; id: string}
+	| {type: 'attached'; id: string; note?: string}
 	| {type: 'attachError'; id: string; error: string}
 	| {type: 'key'; input: string; key: Key}
 	| {type: 'resize'; columns: number; rows: number};
@@ -131,6 +133,7 @@ export class Model {
 			case 'attachError':
 				// Whatever the captain did in the run's view shows on the board now.
 				if (ev.type === 'attachError') this.setFlash(`could not open the run of ${ev.id}: ${ev.error}`);
+				else if (ev.note) this.setFlash(ev.note);
 				this.taskDone.delete(ev.id);
 				effects.push(...this.schedule());
 				break;
