@@ -13,7 +13,7 @@ import {buildRows, deriveInfo, isHeader, type Info, type Row} from './rows.js';
 export interface Config {
 	// intervalMs is how often each live agent's local state is re-read.
 	intervalMs: number;
-	// inactiveIntervalMs is the same for done, unknown, and absent agents.
+	// inactiveIntervalMs is the same for done and unknown agents.
 	inactiveIntervalMs: number;
 	// fleetIntervalMs is how often the bearings snapshot is re-read.
 	fleetIntervalMs: number;
