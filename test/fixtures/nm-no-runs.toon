@@ -1,0 +1,4 @@
+current_branch: fm/cli-status-view
+runs_on_current_branch: 0
+runs: 0 runs yet in this repository
+help[1]: "Run no-mistakes axi run --intent \"the user's goal\" --yes to validate the current branch"

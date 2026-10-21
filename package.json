@@ -1,0 +1,53 @@
+{
+  "name": "fleetwatch",
+  "version": "0.1.0",
+  "description": "Live terminal view of firstmate's agents: no-mistakes stage, PRs, status, and captain decisions",
+  "keywords": [
+    "cli",
+    "tui",
+    "terminal",
+    "agents",
+    "firstmate",
+    "no-mistakes",
+    "herdr",
+    "ink"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "fleetwatch": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.json && node --test --test-reporter=spec 'build-test/test/**/*.test.js'",
+    "prepack": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davidrydberg/fleetwatch.git"
+  },
+  "homepage": "https://github.com/davidrydberg/fleetwatch#readme",
+  "bugs": {
+    "url": "https://github.com/davidrydberg/fleetwatch/issues"
+  },
+  "dependencies": {
+    "chalk": "^6.0.1",
+    "ink": "^8.0.0",
+    "react": "^19.3.1",
+    "string-width": "^8.3.0",
+    "wrap-ansi": "^10.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "ink-testing-library": "^4.0.0",
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,0 +1,253 @@
+{
+  "schema": "fm-bearings.v1",
+  "home": "code/firstmate",
+  "generated": "2026-10-20T21:54:15Z",
+  "prs": "not_requested (run: /bearings include PRs)",
+  "in_flight": [
+    {
+      "id": "web-admin-console",
+      "kind": "ship",
+      "state": "unknown",
+      "repo": "shop-web",
+      "name": "Admin console, phase 2: one shell, a single compact header, keyboard n…",
+      "doing": "run cancelled: no verdict · run: 01JXV5Y7AGQ5P2FQK82NG9RKK4"
+    },
+    {
+      "id": "wiki-db-claims-check",
+      "kind": "scout",
+      "state": "unknown",
+      "repo": "shop-wiki",
+      "name": "Check what the wiki claims about the dev database against the real sch…",
+      "doing": "worktree gone (torn down?)"
+    },
+    {
+      "id": "blog-explainer",
+      "kind": "scout",
+      "state": "done",
+      "repo": "firstmate",
+      "name": "Explainer: a multi-page guide to how the fleet works",
+      "doing": "10-page field guide written to data/blog-explainer/site/index.html (all 228 links che…"
+    },
+    {
+      "id": "cli-status-view",
+      "kind": "ship",
+      "state": "working",
+      "repo": "fleetwatch",
+      "name": "Status view: a live terminal view of running agents",
+      "doing": "harness busy (claude-hook)"
+    },
+    {
+      "id": "api-catalog-scope",
+      "kind": "ship",
+      "state": "done",
+      "repo": "shop-api",
+      "name": "Fix the catalog cache lifetime. App\\Catalog\\ActiveCatalog lives per pr…",
+      "doing": "checks green: PR ready for review (still monitoring for merge/close): https://github.com/e…"
+    },
+    {
+      "id": "dev-inventory",
+      "kind": "scout",
+      "state": "parked",
+      "repo": "shop-api",
+      "name": "Inventory: everything on dev not on main, per feature (API + web)",
+      "doing": "dev-to-main inventory ready (data/dev-inventory/report.md); captain owes per-feature pi…"
+    },
+    {
+      "id": "mailer-send-limits",
+      "kind": "ship",
+      "state": "failed",
+      "repo": "mailer",
+      "name": "Mailer: send limits (20 per run, twice daily, stop over 60 per day an…",
+      "doing": "run failed · status-log superseded (run failed) · run: 01JXFHFAZBQ6EPNQXJJX41RA0F"
+    },
+    {
+      "id": "pack-option-api",
+      "kind": "ship",
+      "state": "parked",
+      "repo": "shop-api",
+      "name": "API side of the packing option at checkout.",
+      "doing": "parked at review: 2 finding(s) · ask-user: authority decision · run: 01JXB56R3S8P2RMK6RQF9…"
+    },
+    {
+      "id": "pack-option-web",
+      "kind": "ship",
+      "state": "working",
+      "repo": "shop-web",
+      "name": "Web side of the packing option at checkout (the screens the API side…",
+      "doing": "validating (running) · run: 01JXHQQMXAAMQFC2392B359VRQ"
+    }
+  ],
+  "secondmates": [
+    {
+      "id": "spare",
+      "state": "captain_decision",
+      "doing": "Docs: the runbook vision turned into a runbook PRD (draft PR); Bulk orders: one marked parent order, numbered child …",
+      "provenance": "structured-home",
+      "freshness": "fresh",
+      "age_seconds": 57,
+      "contradiction": true,
+      "reason": "-"
+    }
+  ],
+  "secondmate_reconcile": [
+    {
+      "id": "spare",
+      "spawn_gen": null,
+      "host": "buildbox",
+      "kind": null,
+      "ids": []
+    }
+  ],
+  "decisions_open": [
+    {
+      "id": "web-event-tracking",
+      "key": "web-event-tracking",
+      "verb": "captain-hold",
+      "summary": "Fix the web event tracking for newsletter sends: the captain asked whether the events…",
+      "owner": "(main)"
+    },
+    {
+      "id": "release-picks",
+      "key": "release-picks",
+      "verb": "captain-hold",
+      "summary": "Pick per feature how dev work moves to main: ship now, ship switched off, keep testing, or…",
+      "owner": "(main)"
+    },
+    {
+      "id": "spare/runbook-docs",
+      "key": "runbook-docs",
+      "verb": "captain-hold",
+      "summary": "Docs: the runbook vision turned into a runbook PRD (draft PR): two captain calls on the s…",
+      "owner": "spare"
+    },
+    {
+      "id": "spare/bulk-order-design",
+      "key": "bulk-order-design",
+      "verb": "captain-hold",
+      "summary": "Bulk orders: one marked parent order, numbered child orders, one completion signal - ca…",
+      "owner": "spare"
+    }
+  ],
+  "landed": [
+    {
+      "id": "widget-trust-fix",
+      "what": "widget: close three trust holes (config fingerprint, approval lock, fa…",
+      "artifact": "https://github.com/example-org/widget/pull/3",
+      "owner": "(main)"
+    },
+    {
+      "id": "pack-follow-up",
+      "what": "Packing follow-up to PR 106: a pack_separately marker, per-group tota…",
+      "artifact": "https://github.com/example-org/shop-api/pull/127",
+      "owner": "spare"
+    }
+  ],
+  "gates": [
+    {
+      "id": "web-lock-errors",
+      "title": "Web shows the totals-lock refusals (payment on a closed ord…",
+      "blocked_by": "api-freeze-totals",
+      "reason": "-",
+      "owner": "(main)",
+      "filed": "2026-10-18"
+    },
+    {
+      "id": "dev-alerts",
+      "title": "Dev incident alerts: a chat-only notifier on dev (stage 1)",
+      "blocked_by": "-",
+      "reason": "-",
+      "owner": "(main)",
+      "filed": "2026-10-16"
+    }
+  ],
+  "reports": [
+    {
+      "id": "web-admin-console",
+      "path": "/home/dev/firstmate/data/web-admin-console/report.md"
+    },
+    {
+      "id": "hold-backlog-review",
+      "path": "/home/dev/firstmate/data/hold-backlog-review/report.md"
+    }
+  ],
+  "recorded_prs": [
+    {
+      "id": "web-admin-console",
+      "url": "https://github.com/example-org/shop-web/pull/71"
+    },
+    {
+      "id": "api-catalog-scope",
+      "url": "https://github.com/example-org/shop-api/pull/188"
+    },
+    {
+      "id": "pack-option-web",
+      "url": "https://github.com/example-org/shop-web/pull/87"
+    }
+  ],
+  "unhealthy_endpoints": [
+    {
+      "id": "web-admin-console",
+      "backend": "herdr",
+      "target": "default:w7G:p2",
+      "exists": false,
+      "agent": "not_checked"
+    },
+    {
+      "id": "hold-backlog-review",
+      "backend": "herdr",
+      "target": "default:w4P:p2",
+      "exists": false,
+      "agent": "not_checked"
+    }
+  ],
+  "omitted": [
+    {
+      "surface": "backlog item bodies",
+      "reveal": "--fields bodies"
+    },
+    {
+      "surface": "task paths",
+      "reveal": "--fields paths"
+    },
+    {
+      "surface": "watch/steer actions",
+      "reveal": "--fields actions"
+    },
+    {
+      "surface": "healthy endpoint detail",
+      "reveal": "--fields endpoints"
+    },
+    {
+      "surface": "full scout-report inventory",
+      "reveal": "--all-reports"
+    },
+    {
+      "surface": "landed showing 6 of 12 (incl. 1 secondmate home(s))",
+      "reveal": "--all-landed"
+    },
+    {
+      "surface": "landed per-home capped at 6 for 2 home(s)",
+      "reveal": "--all-landed"
+    },
+    {
+      "surface": "in_flight showing 20 of 25",
+      "reveal": "--all-in-flight"
+    },
+    {
+      "surface": "secondmate parent activity evidence truncated for 1 record(s)",
+      "reveal": "raise FM_SNAPSHOT_PARENT_ACTIVITY_LINES, FM_SNAPSHOT_PARENT_ACTIVITY_BYTES, or FM_SNAPSHOT_PARENT_ACTIVITIES"
+    },
+    {
+      "surface": "captain holds bucketed blocked, dated, or aged: 13",
+      "reveal": "--all-decisions"
+    },
+    {
+      "surface": "gates showing 20 of 127",
+      "reveal": "--all-queued"
+    },
+    {
+      "surface": "live PR discovery + checks",
+      "reveal": "--include-prs"
+    }
+  ]
+}

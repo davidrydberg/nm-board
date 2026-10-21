@@ -1,0 +1,60 @@
+run:
+  id: "01JXB56R3S8P2RMK6RQF9R4EN9"
+  branch: fm/pack-option-api
+  status: running
+  awaiting_agent: parked 1d9h
+  head: 65196de5
+  head_sha: 65196de507af38df221bb995f5264ea0adee29d9
+  verification_plan: none
+  findings: 2 awaiting
+  steps[9]{step,status,findings,duration_ms}:
+    intent,completed,0,2
+    rebase,completed,0,2006
+    review,awaiting_approval,2,102680
+    test,pending,0,0
+    document,pending,0,0
+    lint,pending,0,0
+    push,pending,0,0
+    pr,pending,0,0
+    ci,pending,0,0
+branch_sync:
+  state: pipeline_owned
+  changed: false
+  local:
+    branch: fm/pack-option-api
+    head: 65196de507af38df221bb995f5264ea0adee29d9
+    clean: true
+  pipeline:
+    run: "01JXB56R3S8P2RMK6RQF9R4EN9"
+    status: running
+    phase: pre_push
+    submitted_head: 65196de507af38df221bb995f5264ea0adee29d9
+    current_head: 65196de507af38df221bb995f5264ea0adee29d9
+    pushed_head: ""
+    pushed_at: 0
+    push_generation: 0
+  target:
+    kind: ""
+    remote: origin
+    url: "https://github.com/example-org/shop-api.git"
+    ref: ""
+  remote:
+    observed_head: ""
+    freshness: pipeline_push
+    observed_at: 0
+  relation: equal
+  safety: blocked_pipeline_owned
+  pr_state: none
+  note: a validation run is active on this branch; do not make local follow-up commits until it finishes
+  next_action:
+    code: continue_active_run
+    command: no-mistakes axi status
+gate:
+  step: review
+  status: awaiting_approval
+  risk: medium
+  note: "Review auto-fix is disabled by default (`auto_fix.review: 0`; a repo or global `auto_fix.review > 0` override re-enables it), so blocking and ask-user review findings park for your decision rather than being silently self-fixed."
+  findings[2]{id,severity,file,action,description}:
+    admin-toggle-overridden,warning,app/Models/Order.php,ask-user,"resolvePackingMode() now ignores the per-group admin toggle wherever isPackingOptionAvailable() is true. With the fee configured, that covers every order with more than one item, so in practice the admin checkbox stops doing anything. Concrete case: support has opted a pilot group in, and the customer never touches the new choice (pack_separately defaults false). The order completes packed together, the opposite of the opt-in. Support can also no longer turn the option on without the fee. This is deliberat… (truncated, 917 chars total)"
+    invoice-fee-row-unverified,warning,src/Billing/InvoiceExporter.php,ask-user,"The exporter now prices the new taxable fee line as if the invoicing service bills it like shipping (one unit, net plus VAT). The docblock itself says no real invoice has shown it yet. If the service maps a taxable fee line differently, for example untaxed or at another VAT rate, the exact-total guarantee breaks silently for every packed order: the invoice total differs from the total the customer authorized. The vendor has confirmed the completion trigger, not the fee-line mapping. Confirmin… (truncated, 700 chars total)"
+help[6]: Run `no-mistakes axi respond --action approve` to accept this step and continue,Run `no-mistakes axi respond --action fix --findings <ids>` to have the pipeline fix the selected findings (do not edit files yourself),Run `no-mistakes axi respond --action skip` to skip this step,Run `no-mistakes axi logs --step review --full` to read the full step log,"A long-running call is working, not stalled - background it if your harness needs to, but the run never advances past a gate on its own. Read every return; on a `gate:`, respond; loop until an `outcome:`.","Commit post-pipeline follow-up work on top of the existing branch so every pipeline fix commit remains present. Never abort-and-restart, reset, or replace the branch in a way that drops prior gate-fix commits."

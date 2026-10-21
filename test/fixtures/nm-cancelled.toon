@@ -1,0 +1,23 @@
+run:
+  id: "01JXV5Y7AGQ5P2FQK82NG9RKK4"
+  branch: fm/web-admin-dev-sync
+  status: cancelled
+  head: 278540a6
+  head_sha: 278540a98688225051d608ec71c9dfd1bf4e8647
+  verification_plan: none
+  pr: "https://github.com/example-org/shop-web/pull/79"
+  findings: none
+  steps[9]{step,status,findings,duration_ms}:
+    intent,completed,0,24
+    rebase,completed,0,1698
+    review,completed,0,105907
+    test,completed,0,447466
+    document,completed,0,22199
+    lint,completed,0,773
+    push,completed,0,4226
+    pr,completed,0,45958
+    ci,failed,0,612237
+  shared_work[1]{attributed_to,scope,duration_ms}:
+    document,document+lint housekeeping,22199
+outcome: cancelled
+error: "cancelled: aborted by user"
